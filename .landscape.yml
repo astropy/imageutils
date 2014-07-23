@@ -1,0 +1,19 @@
+# This is the config file for landscape.io
+# https://landscape.io/pages/docs
+# https://landscape.io/github/astropy/imageutils
+
+ignore-paths:
+    - dev
+    - examples
+    - docs/conf.py
+    - imageutils/extern
+    - imageutils/version.py
+    - imageutils/conftest.py
+    - imageutils/_astropy_init.py
+    - imageutils/cython_version.py
+    - ah_bootstrap.py
+    - ez_setup.py
+
+ignore-patterns:
+#   *tests*
+#   *setup_package*
