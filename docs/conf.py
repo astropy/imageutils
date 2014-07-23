@@ -49,6 +49,12 @@ setup_cfg = dict(conf.items('metadata'))
 
 # -- General configuration ----------------------------------------------------
 
+del intersphinx_mapping['h5py']
+intersphinx_mapping['astropy'] = ('http://docs.astropy.org/en/latest/', None)
+intersphinx_mapping['skimage'] = ('http://scikit-image.org/docs/stable/', None)
+intersphinx_mapping['reproject'] = ('http://reproject.readthedocs.org/en/latest/', None)
+
+
 # If your documentation needs a minimal Sphinx version, state it here.
 #needs_sphinx = '1.2'
 
