@@ -1,4 +1,0 @@
-imageutils
-==========
-
-Image-related utilies
