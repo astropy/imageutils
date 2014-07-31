@@ -39,6 +39,7 @@ develop-eggs
 distribute-*.tar.gz
 
 # Other
+.cache
 .*.swp
 *~
 
