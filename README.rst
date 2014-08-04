@@ -4,7 +4,13 @@ imageutils
 Image processing utilities for Astropy.
 
 * Code: https://github.com/astropy/imageutils
-* Docs: https://imageutils.readthedocs.org/
+* Docs: https://imageutils.readthedocs.org/en/latest/imageutils/index.html
+
+The docs contain a
+`What is this? <https://imageutils.readthedocs.org/en/latest/imageutils/index.html#what-is-this>`__
+and a 
+`Related Astropy packages <https://imageutils.readthedocs.org/en/latest/imageutils/index.html#related-astropy-packages>`__
+section that explain the scope and purpose of this package.
 
 Status reports for developers
 -----------------------------
