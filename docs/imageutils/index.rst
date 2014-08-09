@@ -40,4 +40,13 @@ How to structure Astropy into sub-packages and which function belongs where is s
 easy to decide. Please ask on Github or on the Astropy mailing list if you would like to contribute
 something and don't know where to put it, or if you think something is really out of place and should be moved.
 
+Sub-pages
+---------
+
+.. toctree::
+   :maxdepth: 1
+
+   api-spec
+ 
+
 .. automodapi:: imageutils
