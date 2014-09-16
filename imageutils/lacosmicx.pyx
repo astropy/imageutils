@@ -1,3 +1,6 @@
+# distutils: language = c++
+# distutils: sources = functions.cpp
+# cython: profile=True
 """============================================================================
 // Name        : Lacosmicx
 // Author      : Curtis McCully
@@ -6,19 +9,6 @@
 // Description : Lacosmic Written in C++
 ============================================================================
 """
-
-#include "lacosmicx.h"
-#include<malloc.h>
-#include<stdlib.h>
-#include<iostream>
-#include<math.h>
-#include"fitsio.h"
-#include<string.h>
-#include<stdio.h>
-#include "functions.h"
-
-
-//#include "Lacosmicx.h"
 
 """
  About
@@ -51,20 +41,8 @@
 
  -This implementation is much faster than the Python or Iraf versions by ~factor of 7.
 
- - In cfitsio, data are striped along x dimen, thus all loops
+ - In pyfits, data are striped along x dimen, thus all loops
  are y outer, x inner.  or at least they should be...
- Usage
- =====
-
-
- Todo
- ====
-
- Curtis McCully April 2011
-
-
- __version__ = '1.0'
-
 
  sigclip : increase this if you detect cosmics where there are none. Default is 5.0, a good value for earth-bound images.
  objlim : increase this if normal stars are detected as cosmics. Default is 5.0, a good value for earth-bound images.
@@ -87,455 +65,119 @@
  int    niter   = 4            # maximum number of iterations
 
  */
+
  """
-def run(indat, inmask=None, sigclip = 4.5, sigfrac = 0.3, objlim = 5.0, pssl = 0.0, gain = 1.0, readnoise = 6.5 , satlevel = 65536.0, niter = 4, robust = False):
+
+import numpy as np
+cimport numpy as np
+cimport cython
+from cython cimport floating
+np.import_array()
+
+from libcpp cimport bool
+
+cdef extern from "functions.h":
+    float median(float* a, int n)
+    float* medfilt3(float* arr, int nx, int ny)
+    void updatemask(float* data, bool* mask, float satlevel, int nx, int ny, bool fullmedian)
+    int lacosmiciteration(float* cleanarr, bool* mask, bool* crmask, float sigclip, float objlim, float sigfrac, float backgroundlevel, float readnoise, int nx, int ny, bool fullmedian)
+
+def test(d):
+    return ctest(d, d.shape[0], d.shape[1])
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef ctest(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] d, nrows, ncols):
+    cdef float* arrptr = <np.float32_t*> np.PyArray_DATA(d)
+    cdef float* m3 = medfilt3(arrptr, nrows, ncols)
+    cdef np.float32_t [:, ::1] m3_memview = <np.float32_t[:nrows, :ncols]> m3
+    return np.asarray(m3_memview)
+
+
+#A python wrapper for the cython function for lacosmicx
+def run(data, mask=None, sigclip = 4.5, sigfrac = 0.3, objlim = 5.0, readnoise = 6.5 , satlevel = 65536.0,
+        pssl = 0.0, gain = 1.0, niter = 4, fullmedian = False):
+    return np.asarray(crun(data, mask, sigclip=sigclip,sigfrac=sigfrac,objlim=objlim, readnoise = readnoise,
+                           satlevel = satlevel, pssl = pssl, gain=gain, niter = niter, fullmedian=fullmedian), dtype=np.bool)
+
+cdef bool[:,::1] crun(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] indat,
+                      np.ndarray[np.uint8_t, ndim=2, mode='c',cast=True] inmask,
+                       float sigclip = 4.5, float sigfrac  = 0.3, 
+                       float objlim = 5.0, float readnoise =  6.5, float satlevel = 65536.0, 
+                       float pssl =0.0, float gain=1.0 , 
+                       int niter=4, fullmedian=False):
+    cdef int nx = indat.shape[1]
+    cdef int ny = indat.shape[0]
+    #First it isn't good form to update the input data directly, so we make a copy
+    cdef float[:,::1] data = np.empty_like(indat)
+    for i in range(ny):
+        for j in range(nx):
+            data[i,j] = indat[i,j]
+            
+    #The data mask needs to be indexed with (i,j) -> (nx *j+i) (c-style indexed)
+    cdef bool[:,::1] mask
+
+    if inmask is None:
+        #By default don't mask anything
+        mask = np.zeros((ny,nx),dtype=np.uint8,order='C')
+    else:
+        #Make a copy of the input mask
+        mask = np.empty_like(inmask,dtype=np.uint8)
+        for i in range(ny):
+            for j in range(nx):
+                data[i,j] = indat[i,j]
+                
+    #Find the saturated stars and add them to the mask
+
+    updatemask(<float*> np.PyArray_DATA(np.asarray(data)),<bool*> np.PyArray_DATA(np.asarray(mask)),satlevel, nx,ny, fullmedian)
     
-    if (maskfile == NULL) {
-        //By default don't mask anything
-        maskdat = new bool[nxny];
-        for (i = 0; i < nxny; i++) {
-            maskdat[i] = false;
-        }
- 
-#pragma omp parallel for firstprivate(this_nxny,data,gain,pssl) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        # internally, we will always work "with sky" and in electrons, not ADU (gain=1)
-        data[i] += pssl;
-        data[i] *= gain;
-    }
+    gooddata = np.zeros(nx*ny-np.asarray(mask).sum(),dtype=np.float32,order='C')
 
-    #This data mask needs to be indexed with (i,j) -> (nx *j+i) (c-style indexed)
-    //A mask of saturated stars and pixels with no data
-    //Calculate a default background level, take into account the mask
-    //This background level is used for large cosmics
-    int ngoodpix = 0;
-#pragma omp parallel for firstprivate(this_nxny,mask) private(i) reduction(+ : ngoodpix)
-    for (i = 0; i < this_nxny; i++) {
-        if (!mask[i]) {
-            ngoodpix++;
-        }
-    }
-    int goodcounter = 0;
-    float *gooddata = new float[ngoodpix];
-    for (i = 0; i < ngoodpix; i++) {
-        if (!mask[i]) {
-            gooddata[goodcounter] = data[i];
-            goodcounter++;
-        }
-    }
-    backgroundlevel = median(gooddata, ngoodpix);
-    delete[] gooddata;
+    igoodpix = 0
 
-    cleanarr = new float[nxny];
-    float* this_cleanarr;
-    this_cleanarr = cleanarr;
-#pragma omp parallel for firstprivate(this_cleanarr,this_nxny,data) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        this_cleanarr[i] = data[i]; # In lacosmiciteration() we work on this guy
-    }
+    #note the c-style convention here with y as the slow direction and x and the fast direction
+    #This follows the pyfits convention as well
 
-    crmask = new bool[nxny];
-    bool *this_crmask;
-    this_crmask = crmask;
-#pragma omp parallel for firstprivate(this_nxny,this_crmask) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        // All False, no cosmics yet
-        this_crmask[i] = false;
-    }
-}
+    for i in range(ny):
+        for j in range(nx):
+            # internally, we will always work "with sky" and in electrons, not ADU (gain=1)
+            data[i,j] += pssl;
+            data[i,j] *= gain;
+            #Get only data that is unmasked
+            if not mask[i,j]:
+                gooddata[igoodpix] = data[i,j]
+                igoodpix+=1
+    #Get the default background level for large cosmics
+    backgroundlevel = median( <float*> np.PyArray_DATA(np.asarray(gooddata)), len(gooddata))
+    del gooddata
 
-   /*
-     Full artillery :-)
-     - Find saturated stars
-     - Run maxiter L.A.Cosmic iterations (stops if no more cosmics are found)
-     */
+    #Defined a cleaned array
+    #This is what we work with in lacosmic iteration
+    #Set the initial values to those of the data array
+    cdef float[:,::1] cleanarr = np.empty_like(indat)
+    for i in range(ny):
+        for j in range(nx):
+            cleanarr[i,j]=data[i,j]
 
-    findsatstars();
-    int i;
-    cout << "Starting " << maxiter << " L.A.Cosmic iterations \n";
-    for (i = 0; i < maxiter; i++) {
-        cout << "Iteration " << i + 1 << "\n";
+    #Define a cosmic ray mask
+    #This is what will be returned at the end
+    cdef bool[:,::1] crmask = np.zeros((ny,nx),dtype=np.uint8,order='C')
 
-        //Detect the cosmic rays
-        int ncrpix;
-        ncrpix = lacosmiciteration();
-        cout << ncrpix << " cosmic pixels\n";
+    #Run lacosmic for up to maxiter iterations
+    #We stop if no more cosmics are found
 
-        //If we didn't find anything, we're done.
-        if (ncrpix == 0) {
-            break;
-        }
-    }
-    //Convert back to ADU and subtract the sky again
-    int this_nxny = nxny;
-    float this_gain = gain;
-    float this_pssl = pssl;
-    float* this_data;
-    this_data = data;
-    float* this_cleanarr;
-    this_cleanarr = cleanarr;
-#pragma omp parallel for firstprivate(this_nxny,this_gain,this_pssl,this_data,this_cleanarr)
-    for (i = 0; i < this_nxny; i++) {
-        this_data[i] /= this_gain;
-        this_data[i] -= this_pssl;
-        this_cleanarr[i] /= this_gain;
-        this_cleanarr[i] -= this_pssl;
-    }
-    cout << "Finished!\n";
+    print "Starting {} L.A.Cosmic iterations".format(niter)
+    for i in range(niter):
+        print "Iteration {}:".format(i+1)
 
-#Define a print operator
-    /*
-     Gives a summary of the current state, including the number of cosmic pixels in the mask etc.
-     */
-    out << "Input array: (" << l->nx << "," << l->ny << ")\n";
-    int i;
-    int crsum = 0;
-    int masksum = 0;
-    int this_nxny = l->nx * l->ny;
-    bool* this_crmask;
-    this_crmask = l->crmask;
-    bool* this_mask;
-    this_mask = l->mask;
-#pragma omp parallel for reduction(+ : crsum) reduction(+ : masksum) firstprivate(this_nxny,this_crmask,this_mask) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        if (this_crmask[i]) {
-            crsum++;
-        }
-        if (this_mask[i]) {
-            masksum++;
-        }
-    }
-    out << "Current cosmic ray mask : " << crsum << " pixels \n";
+        #Detect the cosmic rays
+        ncrpix = lacosmiciteration(<float*> np.PyArray_DATA(np.asarray(cleanarr)), <bool*> np.PyArray_DATA(np.asarray(mask)), <bool*> np.PyArray_DATA(np.asarray(crmask)),
+                                    sigclip, objlim, sigfrac, backgroundlevel, readnoise,  nx,  ny,  fullmedian) 
 
-    out << "Using a previously subtracted sky level of " << l->pssl << "\n";
+        print "{} cosmic pixels this iteration".format(ncrpix)
 
-    out << "Median Sky Level: " << l->backgroundlevel << "\n";
+        #If we didn't find anything, we're done.
+        if ncrpix == 0:
+            break
 
-    out << "Saturated Stars and Masked Data: " << masksum << " pixels \n";
-
-    return out;
-}
-
-
-void lacosmicx::findsatstars() {
-    /*
-     Uses the satlevel to find saturated stars (not cosmics !), and puts the result as a mask in self.satstars.
-     This can then be used to avoid these regions in cosmic detection and cleaning procedures.
-     */
-
-    if (verbose) {
-        cout << "Detecting saturated stars\n";
-    }
-    // DETECTION
-
-    //Find all of the saturated pixels
-    bool* satpixels;
-    satpixels = new bool[nxny];
-
-    int i;
-    int this_nxny = nxny;
-    float *this_data;
-    this_data = data;
-    float this_satlevel = satlevel;
-#pragma omp parallel for firstprivate(this_nxny,this_data,this_satlevel,satpixels) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        satpixels[i] = this_data[i] > this_satlevel;
-    }
-
-    //in an attempt to avoid saturated cosmic rays we try prune the saturated stars using the large scale structure
-    float* m5;
-    if (robust) {
-        m5 = medfilt5(data, nx, ny);
-    } else {
-        m5 = sepmedfilt5(data, nx, ny);
-    }
-    //This mask will include saturated pixels and masked pixels
-
-
-#pragma omp parallel for firstprivate(this_nxny,this_satlevel,m5,satpixels) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        satpixels[i] = satpixels[i] && (m5[i] > this_satlevel / 10.0);
-    }
-    delete[] m5;
-
-    if (verbose) {
-        cout << "Building mask of saturated stars\n";
-    }
-
-    // BUILDING THE MASK
-
-    //Combine the saturated pixels with the given input mask
-    //Grow the input mask by one pixel to make sure we cover bad pixels
-    bool* grow_mask;
-    grow_mask = growconvolve(mask, nx, ny);
-
-    //We want to dilate both the mask and the saturated stars to remove false detections along the edges of the mask
-    bool* dilsatpixels;
-    dilsatpixels = dilate(satpixels, 2, nx, ny);
-    delete[] satpixels;
-    bool* this_mask;
-    this_mask = mask;
-#pragma omp parallel for firstprivate(this_nxny,this_mask,dilsatpixels,grow_mask) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        this_mask[i] = dilsatpixels[i] || grow_mask[i];
-    }
-    delete[] dilsatpixels;
-    delete[] grow_mask;
-    if (verbose) {
-        cout << "Mask of saturated stars done\n";
-    }
-
-}
-
-int lacosmicx::lacosmiciteration() {
-    /*
-     Performs one iteration of the L.A.Cosmic algorithm.
-     It operates on cleanarray, and afterwards updates crmask by adding the newly detected
-     cosmics to the existing crmask. Cleaning is not done automatically ! You have to call
-     clean() after each iteration.
-     This way you can run it several times in a row to to L.A.Cosmic "iterations".
-     See function lacosmic, that mimics the full iterative L.A.Cosmic algorithm.
-
-     Returns numcr : the number of cosmic pixels detected in this iteration
-
-     */
-
-    if (verbose) {
-        cout << "Convolving image with Laplacian kernel\n";
-    }
-
-    // We subsample, convolve, clip negative values, and rebin to original size
-    float* subsam;
-    subsam = subsample(cleanarr, nx, ny);
-
-    float* conved;
-    conved = laplaceconvolve(subsam, 2 * nx, 2 * ny);
-    delete[] subsam;
-    int this_nxny = nxny;
-    int i;
-    int nxny4 = 4 * nxny;
-#pragma omp parallel for firstprivate(nxny4,conved) private(i)
-    for (i = 0; i < nxny4; i++) {
-        if (conved[i] < 0.0) {
-            conved[i] = 0.0;
-        }
-    }
-
-    float* s;
-    s = rebin(conved, nx, ny);
-    delete[] conved;
-
-    if (verbose) {
-        cout << "Creating noise model\n";
-    }
-
-    // We build a custom noise map, to compare the laplacian to
-
-    float* m5;
-    if (robust) {
-        m5 = medfilt5(cleanarr, nx, ny);
-    } else {
-        m5 = sepmedfilt7(cleanarr, nx, ny);
-    }
-    float* noise;
-    noise = new float[nxny];
-
-    float this_noise;
-    float this_readnoise = readnoise;
-#pragma omp parallel for firstprivate(this_nxny,this_readnoise,m5,noise) private(i,this_noise)
-    for (i = 0; i < this_nxny; i++) {
-        // We clip noise so that we can take a square root
-        m5[i] < 0.0001 ? this_noise = 0.0001 : this_noise = m5[i];
-        noise[i] = sqrt(this_noise + this_readnoise * this_readnoise);
-    }
-    delete[] m5;
-    if (verbose) {
-        cout << "Calculating Laplacian signal to noise ratio\n";
-    }
-    // Laplacian signal to noise ratio
-
-#pragma omp parallel for firstprivate(this_nxny,noise,s) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        s[i] = s[i] / (2.0 * noise[i]);
-        // the 2.0 is from the 2x2 subsampling
-        // This s is called sigmap in the original lacosmic.cl
-    }
-
-    float* sp;
-    if (robust) {
-        sp = medfilt5(s, nx, ny);
-    } else {
-        sp = sepmedfilt7(s, nx, ny);
-    }
-
-    // We remove the large structures (s prime) :
-#pragma omp parallel for firstprivate(this_nxny,s,sp) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        sp[i] = s[i] - sp[i];
-    }
-    delete[] s;
-    if (verbose) {
-        cout
-                << "Selecting candidate cosmic rays, excluding saturated stars and bad pixels\n";
-    }
-
-    // We build the fine structure image :
-    float* m3;
-    if (robust) {
-        m3 = medfilt3(cleanarr, nx, ny);
-    } else {
-        m3 = sepmedfilt5(cleanarr, nx, ny);
-    }
-    float* f;
-    if (robust) {
-        f = medfilt7(m3, nx, ny);
-    } else {
-        f = sepmedfilt9(m3, nx, ny);
-    }
-
-#pragma omp parallel for firstprivate(this_nxny,f,m3,noise) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        f[i] = (m3[i] - f[i]) / noise[i];
-        if (f[i] < 0.01) {
-            // as we will divide by f. like in the iraf version.
-            f[i] = 0.01;
-        }
-    }
-
-    delete[] m3;
-    delete[] noise;
-
-    //Comments from Malte Tewes
-    // In the article that's it, but in lacosmic.cl f is divided by the noise...
-    // Ok I understand why, it depends on if you use sp/f or L+/f as criterion.
-    // There are some differences between the article and the iraf implementation.
-    // So we will stick to the iraf implementation.
-
-    if (verbose) {
-        cout << "Removing suspected compact bright objects\n";
-    }
-    // Now we have our better selection of cosmics :
-    // Note the sp/f and not lplus/f ... due to the f = f/noise above.
-    bool* cosmics;
-    cosmics = new bool[nxny];
-    float this_sigclip = sigclip;
-    bool* this_mask;
-    this_mask = mask;
-    float this_objlim = objlim;
-#pragma omp parallel for firstprivate(cosmics,sp,f,this_objlim,this_sigclip,this_nxny,this_mask) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        cosmics[i] = (sp[i] > this_sigclip) && !this_mask[i] && ((sp[i] / f[i])
-                > this_objlim);
-    }
-
-    delete[] f;
-
-    // What follows is a special treatment for neighbors, with more relaxed constraints.
-    // We grow these cosmics a first time to determine the immediate neighborhood  :
-    bool* growcosmics;
-    growcosmics = growconvolve(cosmics, nx, ny);
-
-    delete[] cosmics;
-    // From this grown set, we keep those that have sp > sigmalim
-    // so obviously not requiring sp/f > objlim, otherwise it would be pointless
-    //This step still feels pointless to me, but we leave it in because the iraf implementation has it
-#pragma omp parallel for firstprivate(this_nxny,sp,growcosmics,this_mask,this_sigclip) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        growcosmics[i] = (sp[i] > this_sigclip) && growcosmics[i]
-                && !this_mask[i];
-    }
-
-    // Now we repeat this procedure, but lower the detection limit to sigmalimlow :
-    bool* finalsel;
-    finalsel = growconvolve(growcosmics, nx, ny);
-    delete[] growcosmics;
-
-    //Our CR counter
-    int numcr = 0;
-    float this_sigcliplow = sigcliplow;
-#pragma omp parallel for reduction(+ : numcr) firstprivate(finalsel,sp,this_sigcliplow,this_nxny,this_mask) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        finalsel[i] = (sp[i] > this_sigcliplow) && finalsel[i]
-                && (!this_mask[i]);
-        if (finalsel[i]) {
-            numcr++;
-        }
-    }
-    delete[] sp;
-    if (verbose) {
-        cout << numcr << " pixels detected as cosmics\n";
-    }
-    // We update the crmask with the cosmics we have found :
-    bool* this_crmask;
-    this_crmask = crmask;
-#pragma omp parallel for firstprivate(this_crmask,finalsel,this_nxny) private(i)
-    for (i = 0; i < this_nxny; i++) {
-        this_crmask[i] = this_crmask[i] || finalsel[i];
-    }
-
-    // Now the replacement of the cosmics...
-    // we outsource this to the function clean(), as for some purposes the cleaning might not even be needed.
-    // Easy way without masking would be :
-    //self.cleanarray[finalsel] = m5[finalsel]
-    //Go through and clean the image using a masked mean filter, we outsource this to the clean method
-    clean();
-
-    delete[] finalsel;
-    // We return the number of cr pixels
-    // (used by function lacosmic)
-
-    return numcr;
-}
-
-void lacosmicx::clean() {
-    //Go through all of the pixels, ignore the borders
-    int i;
-    int j;
-    int nxj;
-    int idx;
-    int k, l;
-    int nxl;
-    float sum;
-    int numpix;
-
-    int this_nx = nx;
-    int this_ny = ny;
-    bool* this_crmask;
-    this_crmask = crmask;
-    float* this_cleanarr;
-    this_cleanarr = cleanarr;
-    float this_backgroundlevel = backgroundlevel;
-#pragma omp parallel for firstprivate(this_nx,this_ny,this_crmask,this_cleanarr,this_backgroundlevel) private(i,j,nxj,idx,numpix,sum,nxl,k,l)
-    for (j = 2; j < this_ny - 2; j++) {
-        nxj = this_nx * j;
-        for (i = 2; i < this_nx - 2; i++) {
-            //if the pixel is in the crmask
-            idx = nxj + i;
-            if (this_crmask[idx]) {
-                numpix = 0;
-                sum = 0.0;
-                //sum the 25 pixels around the pixel ignoring any pixels that are masked
-
-                for (l = -2; l < 3; l++) {
-                    nxl = this_nx * l;
-                    for (k = -2; k < 3; k++) {
-                        if (!this_crmask[idx + k + nxl]) {
-                            sum += this_cleanarr[idx + k + nxl];
-                            numpix++;
-                        }
-                    }
-
-                }
-
-                //if the pixels count is 0 then put in the background of the image
-                if (numpix == 0) {
-                    sum = this_backgroundlevel;
-                } else {
-                    //else take the mean
-                    sum /= float(numpix);
-                }
-                this_cleanarr[idx] = sum;
-            }
-        }
-    }
-}
+    return crmask

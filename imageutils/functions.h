@@ -26,11 +26,7 @@ float* subsample(float* data, int nx, int ny);
 float* laplaceconvolve(float* data, int nx, int ny);
 float* rebin(float* data, int nx, int ny);
 bool* growconvolve(bool* data, int nx, int ny);
-//float* fromfits(char* filename, bool verbose = true);
-//bool* boolfromfits(char* filename, bool verbose = true);
-//void tofits(char* filename, float* data, int nx, int ny,
-//		char* hdr = (char *) "", bool verbose = true);
-//void booltofits(char* filename, bool* data, int nx, int ny,
-//		char* hdr = (char *) "", bool verbose = true);
-void printfitserror(int status);
+void updatemask(float* data, bool* mask, float satlevel, int nx, int ny, bool fullmedian=false );
+int lacosmiciteration(float* cleanarr, bool* mask, bool* crmask, float sigclip, float objlim, float sigfrac, float backgroundlevel, float readnoise, int nx, int ny, bool fullmedian=false);
+
 #endif /* FUNCTION_H_ */
