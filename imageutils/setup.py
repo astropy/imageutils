@@ -2,20 +2,19 @@ from distutils.core import setup, Extension
 from Cython.Build import cythonize
 
 #setup(ext_modules=cythonize("lacosmicx.pyx"))
-cyExts  = cythonize("test.pyx", sources=["functions.cpp"],language="c++")
-cyExts[0].include_dirs = ['/usr/local/astro64/include', '/usr/include/malloc',
+cyExts  = cythonize("la*.pyx", sources=["laxutils.cpp"],language="c++")
+for ext in cyExts:
+    ext.include_dirs = ['/usr/local/astro64/include', '/usr/include/malloc',
                           '/usr/local/astro64/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/numpy/core/include']
-cyExts[0].extra_compile_args =['-O3','-fopenmp','-funroll-loops','-ffast-math']   
-#cyExts[0].extra_compile_args =['-O3','-fopenmp']
-
-cyExts[0].libraries = ['gomp','cfitsio']
-cyExts[0].library_dirs = ['/usr/local/astro64/lib']
-cyExts[0].extra_link_args=['-fopenmp']
+    ext.extra_compile_args =['-O3','-fopenmp','-funroll-loops','-ffast-math']   
+    ext.libraries = ['gomp']
+    ext.library_dirs = ['/usr/local/astro64/lib']
+    ext.extra_link_args=['-fopenmp']
 setup(ext_modules=cyExts)
 exit()
 module1 = Extension('_lacosmicx',                    
                     include_dirs = ['/usr/local/astro64/include','/usr/stsci/pyssgx/Python2.7.1/include/python2.7','/usr/stsci/pyssgx/2.7.1/numpy/core/include/numpy','/usr/include/malloc'],
-                    libraries = ['cfitsio','gomp'],
+                    libraries = ['gomp'],
                     library_dirs = ['/usr/local/astro64/lib'],
                     extra_compile_args=['-O3','-fopenmp','-funroll-loops','-ffast-math','-sse','sse2'],
                     sources = ['functions.cpp']
