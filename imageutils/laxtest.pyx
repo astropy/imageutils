@@ -1,4 +1,4 @@
-
+# cython: profile=True
 from laxwrappers import *
 import numpy as np
 cimport numpy as np

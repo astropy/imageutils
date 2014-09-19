@@ -79,137 +79,113 @@ from laxwrappers import *
 
 from cython.parallel import parallel, prange
 
-#A python wrapper for the cython function for lacosmicx
-
-def run(data, mask=None, sigclip = 4.5, sigfrac = 0.3, objlim = 5.0, readnoise = 6.5 , satlevel = 65536.0,
-        pssl = 0.0, gain = 1.0, niter = 4, fullmedian = False):
-    return np.asarray(crun(data, mask, sigclip=sigclip,sigfrac=sigfrac,objlim=objlim, readnoise = readnoise,
-                           satlevel = satlevel, pssl = pssl, gain=gain, niter = niter, fullmedian=fullmedian), dtype=np.bool)
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cdef bool[:,::1] crun(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] indat,
-                      np.ndarray[np.uint8_t, ndim=2, mode='c',cast=True] inmask,
-                       float sigclip = 4.5, float sigfrac  = 0.3, 
-                       float objlim = 5.0, float readnoise =  6.5, float satlevel = 65536.0, 
-                       float pssl =0.0, float gain=1.0 , 
+def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
+                      np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] inmask=None,
+                       float sigclip=4.5, float sigfrac=0.3,
+                       float objlim=5.0, float readnoise=6.5, float satlevel=65536.0,
+                       float pssl=0.0, float gain=1.0 ,
                        int niter=4, fullmedian=False):
     cdef int nx = indat.shape[1]
     cdef int ny = indat.shape[0]
-    cdef int i, j=0
+    cdef int i, j = 0
 
-    #First it isn't good form to update the input data directly, so we make a copy
-#   cdef float[:,::1] data = np.empty_like(indat)
-    cdef float[:,::1] data = np.empty_like(indat)
-    for i in range(ny):
-        for j in range(nx):
-            data[i,j] = indat[i,j]
-  
-    #The data mask needs to be indexed with (i,j) -> (nx *j+i) (c-style indexed)
-    cdef bool[:,::1] mask
-
-    if inmask is None:
-        #By default don't mask anything
-        mask = np.zeros((ny,nx),dtype=np.uint8,order='C')
-    else:
-        #Make a copy of the input mask
-        mask = np.empty_like(inmask,dtype=np.uint8)
-        for i in range(ny):
-            for j in range(nx):
-                data[i,j] = indat[i,j]
-                
-    #Find the saturated stars and add them to the mask
-    updatemask(np.asarray(data),np.asarray(mask),satlevel, fullmedian)
+    # Make a copy of the data as the cleanarray that we work on
+    cleanarr = np.empty_like(indat)
+    cleanarr[:, :] = indat[:, :] 
     
-    gooddata = np.zeros(nx*ny-np.asarray(mask).sum(),dtype=np.float32,order='C')
+    # The data mask needs to be indexed with (i,j) -> (nx *j+i) (c-style indexed)
+    if inmask is None:
+        # By default don't mask anything
+        mask = np.zeros((ny, nx), dtype=np.uint8, order='C')
+    else:
+        # Make a copy of the input mask
+        mask = np.empty_like(inmask, dtype=np.uint8)
+        mask[:, :] = inmask[:, :]
+         
+    # Find the saturated stars and add them to the mask
+    updatemask(np.asarray(cleanarr), np.asarray(mask), satlevel, fullmedian)
+    
+    gooddata = np.zeros(nx * ny - np.asarray(mask).sum(), dtype=np.float32, order='C')
 
     igoodpix = 0
 
-    #note the c-style convention here with y as the slow direction and x and the fast direction
-    #This follows the pyfits convention as well
+    # note the c-style convention here with y as the slow direction and x and the fast direction
+    # This follows the pyfits convention as well
+    cleanarr += pssl
+    cleanarr *= gain
 
-    for i in range(ny):
-        for j in range(nx):
-            # internally, we will always work "with sky" and in electrons, not ADU (gain=1)
-            data[i,j] += pssl
-            data[i,j] *= gain
-            #Get only data that is unmasked
-            if not mask[i,j]:
-                gooddata[igoodpix] = data[i,j]
-                igoodpix+=1
-    #Get the default background level for large cosmics
-    backgroundlevel = median( gooddata)
+    gooddata[:] = cleanarr[np.logical_not(mask)]
+    # Get the default background level for large cosmics
+    backgroundlevel = median(gooddata)
     del gooddata
 
-    #Defined a cleaned array
-    #This is what we work with in lacosmic iteration
-    #Set the initial values to those of the data array
-    cdef float[:,::1] cleanarr = np.empty_like(indat)
-    for i in range(ny):
-        for j in range(nx):
-            cleanarr[i,j]=data[i,j]
+    # Defined a cleaned array
+    # This is what we work with in lacosmic iteration
+    # Set the initial values to those of the data array
 
-    #Define a cosmic ray mask
-    #This is what will be returned at the end
-    cdef bool[:,::1] crmask = np.zeros((ny,nx),dtype=np.uint8,order='C')
+    # Define a cosmic ray mask
+    # This is what will be returned at the end
+    cdef bool[:, ::1] crmask = np.zeros((ny, nx), dtype=np.uint8, order='C')
 
-    #Run lacosmic for up to maxiter iterations
-    #We stop if no more cosmics are found
+    # Run lacosmic for up to maxiter iterations
+    # We stop if no more cosmics are found
 
     print "Starting {} L.A.Cosmic iterations".format(niter)
     for i in range(niter):
-        print "Iteration {}:".format(i+1)
+        print "Iteration {}:".format(i + 1)
 
-        #Detect the cosmic rays
-        ncrpix = lacosmiciteration(np.asarray(cleanarr),np.asarray(mask), np.asarray(crmask),
-                                    sigclip, objlim, sigfrac, backgroundlevel, readnoise,  nx,  ny,  fullmedian) 
+        # Detect the cosmic rays
+        ncrpix = lacosmiciteration(np.asarray(cleanarr), np.asarray(mask), np.asarray(crmask),
+                                    sigclip, objlim, sigfrac, backgroundlevel, readnoise, nx, ny, fullmedian) 
 
         print "{} cosmic pixels this iteration".format(ncrpix)
         
-        #If we didn't find anything, we're done.
+        # If we didn't find anything, we're done.
         if ncrpix == 0:
             break
-        #otherwise clean the image and iterate
+        # otherwise clean the image and iterate
 
         # Easy way without masking would be :
-        #self.cleanarray[crmask] = m5[crmask]
-        #Go through and clean the image using a masked mean filter, we outsource this to the clean method
+        # self.cleanarray[crmask] = m5[crmask]
+        # Go through and clean the image using a masked mean filter, we outsource this to the clean method
         clean(cleanarr, crmask, nx, ny, backgroundlevel);
 
-    return crmask
+    return np.asarray(crmask)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cdef void updatemask(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] data, np.ndarray[np.uint8_t, ndim=2, mode='c',cast=True] mask, float satlevel, bool fullmedian):
+cdef void updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask, float satlevel, bool fullmedian):
     """
      Uses the satlevel to find saturated stars (not cosmics !), and puts the result as a mask in the mask.
      This can then be used to avoid these regions in cosmic detection and cleaning procedures.
     """
 
     # DETECTION
-    #Find all of the saturated pixels
-    
+    # Find all of the saturated pixels
+
     satpixels = data >= satlevel
 
-    #in an attempt to avoid saturated cosmic rays we try prune the saturated stars using the large scale structure
+    # in an attempt to avoid saturated cosmic rays we try prune the saturated stars using the large scale structure
     if fullmedian:
         m5 = medfilt5(data)
     else: 
         m5 = sepmedfilt7(data)
     
-    #This mask will include saturated pixels and masked pixels
+    # This mask will include saturated pixels and masked pixels
 
     satpixels = np.logical_and(satpixels, m5 > (satlevel / 10.0))
 
     # BUILDING THE MASK
 
-    #Combine the saturated pixels with the given input mask
-    #Grow the input mask by one pixel to make sure we cover bad pixels
+    # Combine the saturated pixels with the given input mask
+    # Grow the input mask by one pixel to make sure we cover bad pixels
     grow_mask = growconvolve(mask);
 
-    #We want to dilate both the mask and the saturated stars to remove false detections along the edges of the mask
+    # We want to dilate both the mask and the saturated stars to remove false detections along the edges of the mask
     dilsatpixels = dilate(satpixels, 2);
 
     mask = np.logical_or(dilsatpixels, grow_mask)
@@ -218,39 +194,39 @@ cdef void updatemask(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] data, 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cdef clean(float[:,::1] cleanarr, bool[:,::1] crmask, int nx, int ny,
+cdef clean(float[:, ::1] cleanarr, bool[:, ::1] crmask, int nx, int ny,
         float backgroundlevel):
-    #Go through all of the pixels, ignore the borders
-    cdef int i, j, nxj, idx, k,l,nxl,numpix
+    # Go through all of the pixels, ignore the borders
+    cdef int i, j, nxj, idx, k, l, nxl, numpix
     cdef float s = 0.0
 
-    #For each pixel
+    # For each pixel
     for j in range(2, ny - 2):
         nxj = nx * j;
-        for i in range(2, nx -2):
-            #if the pixel is in the crmask
-            if crmask[j,i]:
+        for i in range(2, nx - 2):
+            # if the pixel is in the crmask
+            if crmask[j, i]:
                 numpix = 0;
                 s = 0.0;
-                #sum the 25 pixels around the pixel ignoring any pixels that are masked
+                # sum the 25 pixels around the pixel ignoring any pixels that are masked
 
-                for l in range(-2,3):
+                for l in range(-2, 3):
                     nxl = nx * l;
-                    for k in range(-2,3):
-                        if not crmask[j+l,i+k]:
-                            s += cleanarr[j+l,i+k]
-                            numpix+=1
+                    for k in range(-2, 3):
+                        if not crmask[j + l, i + k]:
+                            s += cleanarr[j + l, i + k]
+                            numpix += 1
 
-                #if the pixels count is 0 then put in the background of the image
+                # if the pixels count is 0 then put in the background of the image
                 if numpix == 0:
                     s = backgroundlevel
                 else:
-                    #else take the mean
+                    # else take the mean
                     s /= float(numpix)
 
-                cleanarr[j,i] = s
+                cleanarr[j, i] = s
 
-cdef int lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] cleanarr, np.ndarray[np.uint8_t, ndim=2, mode='c',cast=True] mask, np.ndarray[np.uint8_t, ndim=2, mode='c',cast=True] crmask, float sigclip,
+cdef int lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] cleanarr, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] crmask, float sigclip,
         float objlim, float sigfrac, float backgroundlevel, float readnoise,
         int nx, int ny, bool fullmedian):
     """
@@ -264,7 +240,7 @@ cdef int lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] 
      Returns numcr : the number of cosmic pixels detected in this iteration
 
     """
-    #Calculate the sigma value for neighbor pixels
+    # Calculate the sigma value for neighbor pixels
     cdef float sigcliplow = sigfrac * sigclip 
     # We subsample, convolve, clip negative values, and rebin to original size
     subsam = subsample(cleanarr)
@@ -283,12 +259,12 @@ cdef int lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] 
         noise = sepmedfilt7(cleanarr);
 
     # We clip noise so that we can take a square root
-    noise[noise < 0.0001]  = 0.0001
+    noise[noise < 0.0001] = 0.0001
     noise = np.sqrt(noise + readnoise * readnoise)
 
 
     # Laplacian signal to noise ratio :
-    s/=  2.0 * noise
+    s /= 2.0 * noise
     # the 2.0 is from the 2x2 subsampling
     # This s is called sigmap in the original lacosmic.cl
 
@@ -310,7 +286,7 @@ cdef int lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] 
         f = sepmedfilt9(m3)
 
     f = (m3 - f) / noise
-    f[f < 0.01 ] =0.01
+    f[f < 0.01 ] = 0.01
     # as we will divide by f. like in the iraf version.
 
     del m3
@@ -335,7 +311,7 @@ cdef int lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] 
 
     # From this grown set, we keep those that have sp > sigmalim
     # so obviously not requiring sp/f > objlim, otherwise it would be pointless
-    #This step still feels pointless to me, but we leave it in because the iraf implementation has it
+    # This step still feels pointless to me, but we leave it in because the iraf implementation has it
     cosmics = np.logical_and(sp > sigclip, np.logical_and(cosmics, np.logical_not(mask)))
 
     # Now we repeat this procedure, but lower the detection limit to sigmalimlow :
@@ -343,12 +319,12 @@ cdef int lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c',cast=True] 
 
 
     cosmics = np.logical_and(sp > sigcliplow, np.logical_and(cosmics, np.logical_not(mask)))
-    #Our CR counter
+    # Our CR counter
     cdef numcr = cosmics.sum()
 
 
     # We update the crmask with the cosmics we have found :
-    crmask[:,:]= np.logical_or(crmask, cosmics)[:,:]
+    crmask[:, :] = np.logical_or(crmask, cosmics)[:, :]
     # We return the number of cr pixels
     # (used by function lacosmic)
 
