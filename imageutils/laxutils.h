@@ -26,8 +26,4 @@ float* _subsample(float* data, int nx, int ny);
 float* _laplaceconvolve(float* data, int nx, int ny);
 float* _rebin(float* data, int nx, int ny);
 bool* _growconvolve(bool* data, int nx, int ny);
-void updatemask(float* data, bool* mask, float satlevel, int nx, int ny, bool fullmedian);
-int lacosmiciteration(float* cleanarr, bool* mask, bool* crmask, float sigclip, float objlim, float sigfrac, float backgroundlevel, float readnoise, int nx, int ny, bool fullmedian);
-
-
 #endif /* LAXUTILS_H_ */

@@ -158,7 +158,7 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-cdef void updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask, float satlevel, bool fullmedian):
+def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask, float satlevel, bool fullmedian):
     """
      Uses the satlevel to find saturated stars (not cosmics !), and puts the result as a mask in the mask.
      This can then be used to avoid these regions in cosmic detection and cleaning procedures.
@@ -226,7 +226,7 @@ cdef clean(float[:, ::1] cleanarr, bool[:, ::1] crmask, int nx, int ny,
 
                 cleanarr[j, i] = s
 
-cdef int lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] cleanarr, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] crmask, float sigclip,
+def lacosmiciteration(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] cleanarr, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask, np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] crmask, float sigclip,
         float objlim, float sigfrac, float backgroundlevel, float readnoise,
         int nx, int ny, bool fullmedian):
     """
