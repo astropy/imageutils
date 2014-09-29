@@ -26,4 +26,5 @@ float* _subsample(float* data, int nx, int ny);
 float* _laplaceconvolve(float* data, int nx, int ny);
 float* _rebin(float* data, int nx, int ny);
 bool* _growconvolve(bool* data, int nx, int ny);
+float* _convolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny);
 #endif /* LAXUTILS_H_ */

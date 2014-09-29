@@ -30,13 +30,13 @@ cdef extern from "laxutils.h":
     float * _laplaceconvolve(float * data, int nx, int ny) nogil
     float * _rebin(float * data, int nx, int ny) nogil
     bool * _growconvolve(bool * data, int nx, int ny) nogil
+    float* _convolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny) nogil
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def median(a):
+def median(np.ndarray[np.float32_t, mode='c', cast=True] a, int n):
     cdef float * aptr = < float *> np.PyArray_DATA(a)
-    cdef int n = a.shape[0]
     cdef float med = 0.0
     with nogil:
         med = _median(aptr, n)
@@ -45,7 +45,7 @@ def median(a):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def optmed25(a):
+def optmed25(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
     cdef float * aptr25 = < float *> np.PyArray_DATA(a)
     cdef float med25 = 0.0
     with nogil:
@@ -55,7 +55,7 @@ def optmed25(a):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def optmed3(a):
+def optmed3(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
     cdef float * aptr3 = < float *> np.PyArray_DATA(a)
     cdef float med3 = 0.0
     with nogil:
@@ -65,7 +65,7 @@ def optmed3(a):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def optmed5(a):
+def optmed5(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
     cdef float * aptr5 = < float *> np.PyArray_DATA(a)
     cdef float med5 = 0.0
     with nogil:
@@ -75,7 +75,7 @@ def optmed5(a):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def optmed7(a):
+def optmed7(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
     cdef float * aptr7 = < float *> np.PyArray_DATA(a)
     cdef float med7 = 0.0
     with nogil:
@@ -85,7 +85,7 @@ def optmed7(a):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def optmed9(a):
+def optmed9(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
     cdef float * aptr9 = < float *> np.PyArray_DATA(a)
     cdef float med9 = 0.0
     with nogil:
@@ -253,6 +253,22 @@ def laplaceconvolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dlap):
         lapptr = _laplaceconvolve(dlapptr, nx, ny)
     cdef np.float32_t [:, ::1] lap_memview = < np.float32_t[:ny, :nx] > lapptr
     return np.asarray(lap_memview)
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def convolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dconv, np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] kernel):
+    cdef int nx = dconv.shape[1]
+    cdef int ny = dconv.shape[0]
+    cdef float* dconvptr = < float *> np.PyArray_DATA(dconv)
+    cdef int knx = kernel.shape[1]
+    cdef int kny = kernel.shape[0]
+    cdef float* kernptr = < float *> np.PyArray_DATA(kernel)
+    cdef float* convptr
+    with nogil:
+        convptr = _convolve(dconvptr, kernptr, nx, ny , knx, kny)
+    cdef np.float32_t [:, ::1] conv_memview = < np.float32_t[:ny, :nx] > convptr
+    return np.asarray(conv_memview)
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

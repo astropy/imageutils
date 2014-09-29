@@ -14,7 +14,7 @@ class Test(unittest.TestCase):
     "Function Tests"
     def test_median(self):
         a = np.ascontiguousarray(np.random.random(1001)).astype('<f4')
-        self.assertEqual(np.float32(np.median(a)),np.float32(median(a)))
+        self.assertEqual(np.float32(np.median(a)),np.float32(median(a,1001)))
         
     def test_optmed25(self):
         a = np.ascontiguousarray(np.random.random(25)).astype('<f4')
@@ -172,6 +172,7 @@ class Test(unittest.TestCase):
     def test_rebin(self):
         a = np.ascontiguousarray(np.random.random((2002, 2002)),dtype=np.float32).astype('<f4')
         cdef float[:,::1] nprebin = np.zeros((1001,1001),dtype = np.float32).astype('<f4')
+        cdef int j, i
         for i in range(1001):
             for j in range(1001):    
                 nprebin[i,j] = (a[2*i,2*j] + a[2*i+1,2*j] + a[2*i,2*j+1] + a[2*i+1,2*j+1])/np.float32(4.0)
@@ -188,6 +189,13 @@ class Test(unittest.TestCase):
         cyconv = laplaceconvolve(a)
         self.assertEqual(1001*1001, (npconv == cyconv).sum())
         
+    def test_convolve(self):
+        a = np.ascontiguousarray(np.random.random((1001, 1001))).astype('<f4')
+        k = np.ascontiguousarray(np.random.random((5,5))).astype('<f4')
+        npconv = ndimage.filters.convolve(a, k, mode = 'constant', cval = 0.0 )
+        cyconv = convolve(a,k)
+        self.assertEqual(1001*1001, (npconv - cyconv < 1e-5).sum())
+
         
     def runTest(self):
         self.test_median()
@@ -206,6 +214,7 @@ class Test(unittest.TestCase):
         self.test_growconvolve()
         self.test_subsample()
         self.test_rebin()
+        self.test_convolve()
         
 if __name__ == '__main__':
     unittest.main()

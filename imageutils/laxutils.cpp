@@ -1142,8 +1142,73 @@ float* _rebin(float* data, int nx, int ny) {
 			output[i + nxj] = (data[2 * i + padnxj]
 					+ data[2 * i + padnxj + padnx]
 					+ data[2 * i + 1 + padnxj + padnx]
-					+ data[2 * i + 1 + padnxj])/4.0 ;
+					+ data[2 * i + 1 + padnxj]) / 4.0;
 		}
 	}
+	return output;
+}
+
+float* _convolve(float* data, float* kernel, int nx, int ny, int kernx,
+		int kerny) {
+	/**
+	 * Simple convolution implementation
+	 */
+//Pad the array with a border of zeros
+//define the border widths
+	int bnx = (kernx - 1) / 2;
+	int bny = (kerny - 1) / 2;
+	int padnx = nx + kernx - 1;
+	int padny = ny + kerny - 1;
+	int padnxny = padnx * padny;
+	int nxny = nx * ny;
+	float* padarr = new float[padnxny];
+
+	float* output = new float[nxny];
+
+	int i, j;
+	int nxj;
+	int padnxj;
+
+	int xmax = nx + bnx;
+	int ymax = ny + bny;
+//Set the borders of padarr = 0.0
+#pragma omp parallel for firstprivate(padarr,data,nx,ny,padnx,padny, bnx, bny, xmax, ymax) private(nxj,padnxj,i,j)
+	for (j = 0; j < padny; j++) {
+		padnxj = padnx * j;
+		nxj = nx * (j - bny);
+		for (i = 0; i < padnx; i++) {
+			if (i < bnx || j < bny || j >= ymax || i >= xmax) {
+				padarr[padnxj + i] = 0.0;
+			} else {
+				padarr[padnxj + i] = data[nxj + i - bnx];
+			}
+		}
+
+	}
+
+	float sum;
+
+	int k, l;
+	int kernxl, padnxl;
+#pragma omp parallel for firstprivate(padarr,output,nx,ny,padnx, bnx, bny, kernx) private(nxj,padnxj,kernxl, padnxl, i,j,k,l, sum)
+	for (j = 0; j < ny; j++) {
+		nxj = nx * j;
+		padnxj = padnx * (j + bny);
+		for (i = 0; i < nx; i++) {
+			sum = 0.0;
+			for (l = -bny; l <= bny; l++) {
+				padnxl = padnx * (l + j + bny);
+				kernxl = kernx * (-l + bny);
+				for (k = -bnx; k <= bnx; k++) {
+					sum += kernel[bnx - k + kernxl]
+							* padarr[padnxl + k + i + bnx];
+				}
+			}
+			output[nxj + i] = sum;
+		}
+	}
+
+	delete[] padarr;
+
 	return output;
 }
