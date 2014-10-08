@@ -6,7 +6,6 @@ cimport numpy as np
 cimport cython
 from cython cimport floating
 np.import_array()
-from scipy import ndimage
 
 from cython.parallel import parallel, prange
 from libcpp cimport bool

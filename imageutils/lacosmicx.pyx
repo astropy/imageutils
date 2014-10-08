@@ -93,11 +93,10 @@ from libc.stdlib cimport abort, malloc, free
 cdef extern from "laxutils.h":
     float _median(float * a, int n) nogil
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def run(np.ndarray[floating, ndim=2, mode='c', cast=True] indat,
+def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] inmask=None,
         float sigclip=4.5, float sigfrac=0.3, float objlim=5.0,
         float readnoise=6.5, float satlevel=65536.0, float pssl=0.0,
@@ -273,7 +272,6 @@ def run(np.ndarray[floating, ndim=2, mode='c', cast=True] indat,
                             [median, meanmask, medmask, idw]""")
     return crmask
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
@@ -322,7 +320,7 @@ cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
     # Go through all of the pixels, ignore the borders
     cdef int i, j, k, l, numpix
     cdef float s
-    cdef bool badpix
+    
     with nogil, parallel():
         # For each pixel
         for j in prange(2, ny - 2):
@@ -336,8 +334,7 @@ cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                     #ignoring any pixels that are masked
                     for l in range(-2, 3):
                         for k in range(-2, 3):
-                            badpix = crmask[j + l, i + k] or mask[j + l, i + k]
-                            if not badpix:
+                            if not (crmask[j + l, i + k] or mask[j + l, i + k]):
                                 s = s + cleanarr[j + l, i + k]
                                 numpix = numpix + 1
 
@@ -361,7 +358,7 @@ cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
     # Go through all of the pixels, ignore the borders
     cdef int k, l, i, j, numpix
     cdef float * medarr
-    cdef bool bad
+
     # For each pixel
     with nogil, parallel():
         medarr = < float * > malloc(25 * sizeof(float))
@@ -374,8 +371,7 @@ cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                     # any pixels that are masked
                     for l in range(-2, 3):
                         for k in range(-2, 3):
-                            bad = crmask[j + l, i + k] or mask[j + l, i + k]
-                            if not badpix:
+                            if not ( crmask[j + l, i + k] or mask[j + l, i + k]):
                                 medarr[numpix] = cleanarr[j + l, i + k]
                                 numpix = numpix + 1
 
@@ -409,7 +405,6 @@ cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
     cdef float[:, ::1] weights = weightsarr
     cdef float wsum
     cdef float val
-    cdef bool badpixel
     cdef int x, y
     # For each pixel
     with nogil, parallel():
@@ -424,8 +419,8 @@ cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                         y = j + l
                         for k in range(-2, 3):
                             x = i + k
-                            badpix = crmask[y, x] or mask[y, x]
-                            if not badpixel:
+                            
+                            if not (crmask[y, x] or mask[y, x]):
                                 val = val + weights[l, k] * cleanarr[y, x]
                                 wsum = wsum + weights[l, k]
                     if wsum < 1e-6:
@@ -456,3 +451,7 @@ cdef moffatkernel(float psffwhm, float beta, int kernsize):
     kernel[:, :] = ((1.0 + (r / alpha) ** 2.0) ** (-1.0 * beta))[:, :]
     kernel /= kernel.sum()
     return kernel
+
+
+
+
