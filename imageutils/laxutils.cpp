@@ -59,8 +59,8 @@ float _median(float* a, int n) {
 		if (arr[middle] > arr[low])
 			ELEM_SWAP(arr[middle], arr[low]);
 
-		/* Swap low item (now in position middle) into position (low+1) */ELEM_SWAP(
-				arr[middle], arr[low + 1]);
+		/* Swap low item (now in position middle) into position (low+1) */
+		ELEM_SWAP(arr[middle], arr[low + 1]);
 
 		/* Nibble from each end towards middle, swapping items when stuck */
 		ll = low + 1;
@@ -79,8 +79,8 @@ float _median(float* a, int n) {
 			ELEM_SWAP(arr[ll], arr[hh]);
 		}
 
-		/* Swap middle item (in position low) back into correct position */ELEM_SWAP(
-				arr[low], arr[hh]);
+		/* Swap middle item (in position low) back into correct position */
+		ELEM_SWAP(arr[low], arr[hh]);
 
 		/* Re-set active partition */
 		if (hh <= median)
@@ -93,7 +93,8 @@ float _median(float* a, int n) {
 
 #undef ELEM_SWAP
 
-/** All of the optimized median methods were written by Nicolas Devillard and are in public domain */
+/** All of the optimized median methods were written by Nicolas Devillard
+ * and are in the public domain */
 #define PIX_SORT(a,b) { if (a>b) PIX_SWAP(a,b); }
 #define PIX_SWAP(a,b) { float temp=a;a=b;b=temp; }
 
@@ -107,7 +108,9 @@ float _median(float* a, int n) {
  on the nature of the input signal.
  ---------------------------------------------------------------------------*/
 
-float _optmed3(float* p) {
+float
+_optmed3(float* p)
+{
 	PIX_SORT(p[0], p[1]);
 	PIX_SORT(p[1], p[2]);
 	PIX_SORT(p[0], p[1]);
