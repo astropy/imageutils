@@ -8,7 +8,7 @@ from ..laxwrappers import (median, optmed3, optmed5, optmed7,
                            optmed9, optmed25, medfilt3, medfilt5,
                            medfilt7, sepmedfilt3, sepmedfilt5, sepmedfilt7,
                            sepmedfilt9, dilate, growconvolve, subsample,
-                           rebin)
+                           rebin, laplaceconvolve,  convolve)
 
 from scipy import ndimage
 from numpy.testing.utils import assert_allclose
