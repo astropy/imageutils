@@ -1,6 +1,3 @@
-# distutils: language = c++
-# distutils: sources = laxutils.cpp
-# cython: profile=True
 """============================================================================
 // Name        : Lacosmicx
 // Author      : Curtis McCully
