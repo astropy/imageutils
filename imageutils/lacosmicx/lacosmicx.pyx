@@ -88,7 +88,8 @@ from cython.parallel import parallel, prange
 from libc.stdlib cimport abort, malloc, free
 
 cdef extern from "laxutils.h":
-    float _median(float * a, int n) nogil
+    float PyMedian(float * a, int n) nogil
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -99,7 +100,7 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         float readnoise=6.5, float satlevel=65536.0, float pssl=0.0,
         float gain=1.0, int niter=4, fullmedian=False, cleantype='meanmask',
         finestructuremode='median', psfmodel='gauss',
-        psffwh=2.5, psfsize=7, psfk=None, psfbeta=4.765):
+        psffwh=2.5, psfsize=7, psfk=None, psfbeta=4.765, verbose = False):
     cdef int nx = indat.shape[1]
     cdef int ny = indat.shape[0]
     cdef int i, j = 0
@@ -156,9 +157,11 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
 
         # Run lacosmic for up to maxiter iterations
     # We stop if no more cosmics are found
-    print "Starting {} L.A.Cosmic iterations".format(niter)
+    if verbose:
+        print "Starting {} L.A.Cosmic iterations".format(niter)
     for i in range(niter):
-        print "Iteration {}:".format(i + 1)
+        if verbose:
+            print "Iteration {}:".format(i + 1)
 
         # Detect the cosmic rays
 
@@ -230,13 +233,13 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         # with more relaxed constraints.
         # We grow these cosmics a first time to determine the
         # immediate neighborhood
-        cosmics = growconvolve(cosmics)
+        cosmics = dilate3(cosmics)
         cosmics = np.logical_and(cosmics, goodpix)
         # From this grown set, we keep those that have sp > sigmalim
         cosmics = np.logical_and(sp > sigclip, cosmics)
 
         # Now we repeat this procedure, but lower the detection limit to siglow
-        cosmics = growconvolve(cosmics)
+        cosmics = dilate3(cosmics)
         cosmics = np.logical_and(cosmics, goodpix)
 
         cosmics = np.logical_and(sp > sigcliplow, cosmics)
@@ -248,7 +251,8 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         #Update the crmask with the cosmics we have found
         crmask[:, :] = np.logical_or(crmask, cosmics)[:, :]
 
-        print "{} cosmic pixels this iteration".format(numcr)
+        if verbose:
+            print "{} cosmic pixels this iteration".format(numcr)
 
         # If we didn't find anything, we're done.
         if numcr == 0:
@@ -268,6 +272,7 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
             raise ValueError("""cleantype must be one of the following values:
                             [median, meanmask, medmask, idw]""")
     return crmask
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -297,11 +302,11 @@ def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data,
     satpixels = np.logical_and(satpixels, m5 > (satlevel / 10.0))
 
     # Grow the input mask by one pixel to make sure we cover bad pixels
-    grow_mask = growconvolve(mask)
+    grow_mask = dilate3(mask)
 
     # We want to dilate the saturated star mask to remove edge effects
     # in the mask
-    dilsatpixels = dilate(satpixels, 2)
+    dilsatpixels = dilate5(satpixels, 2)
 
     # Combine the saturated pixels with the given input mask
     # Work on the mask pixels in place
@@ -317,7 +322,7 @@ cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
     # Go through all of the pixels, ignore the borders
     cdef int i, j, k, l, numpix
     cdef float s
-    
+
     with nogil, parallel():
         # For each pixel
         for j in prange(2, ny - 2):
@@ -368,7 +373,7 @@ cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                     # any pixels that are masked
                     for l in range(-2, 3):
                         for k in range(-2, 3):
-                            if not ( crmask[j + l, i + k] or mask[j + l, i + k]):
+                            if not (crmask[j + l, i + k] or mask[j + l, i + k]):
                                 medarr[numpix] = cleanarr[j + l, i + k]
                                 numpix = numpix + 1
 
@@ -378,7 +383,7 @@ cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                         cleanarr[j, i] = backgroundlevel
                     else:
                         # else take the mean
-                        cleanarr[j, i] = _median(medarr, numpix)
+                        cleanarr[j, i] = PyMedian(medarr, numpix)
         free(medarr)
 
 
@@ -416,7 +421,6 @@ cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                         y = j + l
                         for k in range(-2, 3):
                             x = i + k
-                            
                             if not (crmask[y, x] or mask[y, x]):
                                 val = val + weights[l, k] * cleanarr[y, x]
                                 wsum = wsum + weights[l, k]
@@ -448,7 +452,3 @@ cdef moffatkernel(float psffwhm, float beta, int kernsize):
     kernel[:, :] = ((1.0 + (r / alpha) ** 2.0) ** (-1.0 * beta))[:, :]
     kernel /= kernel.sum()
     return kernel
-
-
-
-
