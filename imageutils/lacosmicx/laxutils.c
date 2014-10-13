@@ -1,7 +1,24 @@
 /*
  * Author: Curtis McCully
+ * October 2014
  * Originally written in C++ in 2011
  * See also https://github.com/cmccully/lacosmicx
+ *
+ * This file contains utility functions for Lacosmicx. These are the most
+ * computationally expensive pieces of the calculation so they have been ported
+ * to C.
+ *
+ * Many thanks to Nicolas Devillard who wrote the optimized methods for finding
+ * the median and placed them in the public domain. I have noted in the
+ * comments places that use Nicolas Devillard's code.
+ *
+ * Parallelization has been achieved using OpenMP. Using a compiler that does
+ * not support OpenMP, e.g. clang currently, the code should still compile and
+ * run serially without issue. I have tried to be explict as possible about
+ * specifying which variables are private and which should be shared, although
+ * we never actually have any shared variables. We use firstprivate instead.
+ * This does mean that it is important that we never have two threads write to
+ * the same memory position at the same time.
  */
 #include<stdlib.h>
 #include<math.h>
@@ -18,7 +35,8 @@ PyMedian(float* a, int n)
      * This Quickselect routine is based on the algorithm described in
      * "Numerical recipes in C", Second Edition,
      * Cambridge University Press, 1992, Section 8.5, ISBN 0-521-43108-5
-     * This code by Nicolas Devillard - 1998. Public domain.*/
+     * This code by Nicolas Devillard - 1998. Public domain.
+     */
 
     PyDoc_STRVAR(PyMedian__doc__,
         "PyMedian(a, n) -> float\n\n\
@@ -103,7 +121,8 @@ PyMedian(float* a, int n)
 #undef ELEM_SWAP
 
 /* All of the optimized median methods below were written by
- * Nicolas Devillard and are in the public domain. */
+ * Nicolas Devillard and are in the public domain.
+ */
 
 #define PIX_SORT(a,b) { if (a>b) PIX_SWAP(a,b); }
 #define PIX_SWAP(a,b) { float temp=a; a=b; b=temp; }
@@ -394,7 +413,7 @@ PyMedFilt3(float* data, int nx, int ny)
 
     /* 9 element array to calculate the median and a counter index. Note that
      * these both need to be unique for each thread so they both need to be
-     * private and we wait to allocate memory until the pragma below. */
+     * private and we wait to allocate memory until the pragma below.*/
     float* medarr;
     int medcounter;
 
@@ -402,7 +421,7 @@ PyMedFilt3(float* data, int nx, int ny)
      * firstprivate. We make sure that our algorithm doesn't have multiple
      * threads read or write the same piece of memory. */
 #pragma omp parallel firstprivate(output, data, nx, ny) \
-    private(i, j, k, l, medarr, nxj, medcounter, nxk)
+    private(i, j, k, l, medarr, nxj, nxk, medcounter)
     {
         /*Each thread allocates its own array. */
         medarr = (float *) malloc(9 * sizeof(float));
@@ -430,14 +449,15 @@ PyMedFilt3(float* data, int nx, int ny)
         free(medarr);
     }
 
+#pragma omp parallel firstprivate(output, data, nx, nxny) private(i)
     /* Copy the border pixels from the original data into the output array */
     for (i = 0; i < nx; i++) {
         output[i] = data[i];
         output[nxny - nx + i] = data[nxny - nx + i];
     }
-
-    for (i = 0; i < ny; i++) {
-        nxj = nx * i;
+#pragma omp parallel firstprivate(output, data, nx, ny) private(j, nxj)
+    for (j = 0; j < ny; j++) {
+        nxj = nx * j;
         output[nxj] = data[nxj];
         output[nxj + nx - 1] = data[nxj + nx - 1];
     }
@@ -481,7 +501,7 @@ PyMedFilt5(float* data, int nx, int ny)
      * firstprivate. We make sure that our algorithm doesn't have multiple
      * threads read or write the same piece of memory. */
 #pragma omp parallel firstprivate(output, data, nx, ny) \
-    private(i, j, k, l, medarr, nxj, medcounter, nxk)
+    private(i, j, k, l, medarr, nxj, nxk, medcounter)
     {
         /*Each thread allocates its own array. */
         medarr = (float *) malloc(25 * sizeof(float));
@@ -509,6 +529,7 @@ PyMedFilt5(float* data, int nx, int ny)
         free(medarr);
     }
 
+#pragma omp parallel firstprivate(output, data, nx, nxny) private(i)
     /* Copy the border pixels from the original data into the output array */
     for (i = 0; i < nx; i++) {
         output[i] = data[i];
@@ -517,8 +538,9 @@ PyMedFilt5(float* data, int nx, int ny)
         output[nxny - nx - nx + i] = data[nxny - nx - nx + i];
     }
 
-    for (i = 0; i < ny; i++) {
-        nxj = nx * i;
+#pragma omp parallel firstprivate(output, data, nx, ny) private(j, nxj)
+    for (j = 0; j < ny; j++) {
+        nxj = nx * j;
         output[nxj] = data[nxj];
         output[nxj + 1] = data[nxj + 1];
         output[nxj + nx - 1] = data[nxj + nx - 1];
@@ -564,7 +586,7 @@ PyMedFilt7(float* data, int nx, int ny)
      * firstprivate. We make sure that our algorithm doesn't have multiple
      * threads read or write the same piece of memory. */
 #pragma omp parallel firstprivate(output, data, nx, ny) \
-    private(i, j, k, l, medarr, nxj, medcounter, nxk)
+    private(i, j, k, l, medarr, nxj, nxk, medcounter)
     {
         /*Each thread allocates its own array. */
         medarr = (float *) malloc(49 * sizeof(float));
@@ -592,6 +614,7 @@ PyMedFilt7(float* data, int nx, int ny)
         free(medarr);
     }
 
+#pragma omp parallel firstprivate(output, data, nx, nxny) private(i)
     /* Copy the border pixels from the original data into the output array */
     for (i = 0; i < nx; i++) {
         output[i] = data[i];
@@ -602,8 +625,9 @@ PyMedFilt7(float* data, int nx, int ny)
         output[nxny - nx - nx - nx + i] = data[nxny - nx - nx - nx + i];
     }
 
-    for (i = 0; i < ny; i++) {
-        nxj = nx * i;
+#pragma omp parallel firstprivate(output, data, nx, ny) private(j, nxj)
+    for (j = 0; j < ny; j++) {
+        nxj = nx * j;
         output[nxj] = data[nxj];
         output[nxj + 1] = data[nxj + 1];
         output[nxj + 2] = data[nxj + 2];
@@ -615,8 +639,8 @@ PyMedFilt7(float* data, int nx, int ny)
     return output;
 }
 
-/* Calculate the 9x9 separable median filter of an array data that has
- * dimensions nx x ny. The median filter is not calculated for a 4 pixel border
+/* Calculate the 3x3 separable median filter of an array data that has
+ * dimensions nx x ny. The median filter is not calculated for a 1 pixel border
  * around the image. These pixel values are copied from the input data.
  * The data should be striped along the x direction, such that pixel i,j
  * in the 2D image should have memory location data[i + nx *j]. Note that the
@@ -630,7 +654,7 @@ PySepMedFilt3(float* data, int nx, int ny)
         Calculate the 3x3 separable median filter on an array data with \
         dimensions nx x ny. The median filter is not calculated for a 1 pixel \
         border around the image. These pixel values are copied from the input \
-        data. The data array should be striped in the x direction such  that \
+        data. The data array should be striped in the x direction such that \
         pixel i,j has memory location data[i + nx * j]. Note that the rows \
         are median filtered first, followed by the columns.");
 
@@ -680,7 +704,7 @@ PySepMedFilt3(float* data, int nx, int ny)
     }
 
     /* Fill in the borders of rowmed with the original data values */
-#pragma omp parallel for firstprivate(rowmed, nx, ny) private(j, nxj)
+#pragma omp parallel for firstprivate(data, rowmed, nx, ny) private(j, nxj)
     for (j = 0; j < ny; j++) {
         nxj = nx * j;
         rowmed[nxj] = data[nxj];
@@ -713,14 +737,14 @@ PySepMedFilt3(float* data, int nx, int ny)
     free(rowmed);
 
     /* Copy the border pixels from the original data into the output array */
-#pragma omp parallel for firstprivate(output, data, nx, nxny) private(i, nxj)
+#pragma omp parallel for firstprivate(output, data, nx, nxny) private(i)
     for (i = 0; i < nx; i++) {
         output[i] = data[i];
         output[nxny - nx + i] = data[nxny - nx + i];
     }
-#pragma omp parallel for firstprivate(output, nx, ny) private(i, nxj)
-    for (i = 0; i < ny; i++) {
-        nxj = nx * i;
+#pragma omp parallel for firstprivate(output, data, nx, ny) private(j, nxj)
+    for (j = 0; j < ny; j++) {
+        nxj = nx * j;
         output[nxj] = data[nxj];
         output[nxj + nx - 1] = data[nxj + nx - 1];
     }
@@ -743,7 +767,7 @@ PySepMedFilt5(float* data, int nx, int ny)
         Calculate the 5x5 separable median filter on an array data with \
         dimensions nx x ny. The median filter is not calculated for a 2 pixel \
         border around the image. These pixel values are copied from the input \
-        data. The data array should be striped in the x direction such  that \
+        data. The data array should be striped in the x direction such that \
         pixel i,j has memory location data[i + nx * j]. Note that the rows \
         are median filtered first, followed by the columns.");
 
@@ -795,7 +819,7 @@ PySepMedFilt5(float* data, int nx, int ny)
     }
 
     /* Fill in the borders of rowmed with the original data values */
-#pragma omp parallel for firstprivate(rowmed, nx, ny) private(j, nxj)
+#pragma omp parallel for firstprivate(rowmed, data, nx, ny) private(j, nxj)
     for (j = 0; j < ny; j++) {
         nxj = nx * j;
         rowmed[nxj] = data[nxj];
@@ -833,16 +857,16 @@ PySepMedFilt5(float* data, int nx, int ny)
     free(rowmed);
 
     /* Copy the border pixels from the original data into the output array */
-#pragma omp parallel for firstprivate(output, nx, ny, nxny) private(i, j, nxj)
+#pragma omp parallel for firstprivate(output, data, nx, nxny) private(i)
     for (i = 0; i < nx; i++) {
         output[i] = data[i];
         output[i + nx] = data[i + nx];
         output[nxny - nx + i] = data[nxny - nx + i];
         output[nxny - nx - nx + i] = data[nxny - nx - nx + i];
     }
-#pragma omp parallel for firstprivate(output, nx, ny) private(i, nxj)
-    for (i = 0; i < ny; i++) {
-        nxj = nx * i;
+#pragma omp parallel for firstprivate(output, data, nx, ny) private(j, nxj)
+    for (j = 0; j < ny; j++) {
+        nxj = nx * j;
         output[nxj] = data[nxj];
         output[nxj + 1] = data[nxj + 1];
         output[nxj + nx - 1] = data[nxj + nx - 1];
@@ -867,7 +891,7 @@ PySepMedFilt7(float* data, int nx, int ny)
         Calculate the 7x7 separable median filter on an array data with \
         dimensions nx x ny. The median filter is not calculated for a 3 pixel \
         border around the image. These pixel values are copied from the input \
-        data. The data array should be striped in the x direction such  that \
+        data. The data array should be striped in the x direction such that \
         pixel i,j has memory location data[i + nx * j]. Note that the rows \
         are median filtered first, followed by the columns.");
 
@@ -922,7 +946,7 @@ PySepMedFilt7(float* data, int nx, int ny)
     }
 
     /* Fill in the borders of rowmed with the original data values */
-#pragma omp parallel for firstprivate(rowmed, nx, ny) private(j, nxj)
+#pragma omp parallel for firstprivate(rowmed, data, nx, ny) private(j, nxj)
     for (j = 0; j < ny; j++) {
         nxj = nx * j;
         rowmed[nxj] = data[nxj];
@@ -963,7 +987,7 @@ PySepMedFilt7(float* data, int nx, int ny)
     free(rowmed);
 
     /* Copy the border pixels from the original data into the output array */
-#pragma omp parallel for firstprivate(output, nx, ny, nxny) private(i, j, nxj)
+#pragma omp parallel for firstprivate(output, data, nx, nxny) private(i)
     for (i = 0; i < nx; i++) {
         output[i] = data[i];
         output[i + nx] = data[i + nx];
@@ -973,9 +997,9 @@ PySepMedFilt7(float* data, int nx, int ny)
         output[nxny - nx - nx - nx + i] = data[nxny - nx - nx - nx + i];
 
     }
-#pragma omp parallel for firstprivate(output, nx, ny) private(i, nxj)
-    for (i = 0; i < ny; i++) {
-        nxj = nx * i;
+#pragma omp parallel for firstprivate(output, data, nx, ny) private(j, nxj)
+    for (j = 0; j < ny; j++) {
+        nxj = nx * j;
         output[nxj] = data[nxj];
         output[nxj + 1] = data[nxj + 1];
         output[nxj + 2] = data[nxj + 2];
@@ -1002,7 +1026,7 @@ PySepMedFilt9(float* data, int nx, int ny)
         Calculate the 9x9 separable median filter on an array data with \
         dimensions nx x ny. The median filter is not calculated for a 4 pixel \
         border around the image. These pixel values are copied from the input \
-        data. The data array should be striped in the x direction such  that \
+        data. The data array should be striped in the x direction such that \
         pixel i,j has memory location data[i + nx * j]. Note that the rows \
         are median filtered first, followed by the columns.");
 
@@ -1058,7 +1082,7 @@ PySepMedFilt9(float* data, int nx, int ny)
     }
 
     /* Fill in the borders of rowmed with the original data values */
-#pragma omp parallel for firstprivate(rowmed, nx,ny) private(j,nxj)
+#pragma omp parallel for firstprivate(rowmed, data, nx, ny) private(j, nxj)
     for (j = 0; j < ny; j++) {
         nxj = nx * j;
         rowmed[nxj] = data[nxj];
@@ -1072,7 +1096,8 @@ PySepMedFilt9(float* data, int nx, int ny)
     }
 
     /* Median filter the columns */
-#pragma omp parallel firstprivate(rowmed,output,nx,ny) private(i,j,nxj,medarr)
+#pragma omp parallel firstprivate(rowmed, output, nx, ny) \
+    private(i, j, nxj, medarr)
     {
         /* Each thread needs to reallocate a new medarr */
         medarr = (float *) malloc(9 * sizeof(float));
@@ -1102,7 +1127,7 @@ PySepMedFilt9(float* data, int nx, int ny)
     free(rowmed);
 
     /* Copy the border pixels from the original data into the output array */
-#pragma omp parallel for firstprivate(output,nx,ny,nxny) private(i,j,nxj)
+#pragma omp parallel for firstprivate(output, data, nx, nxny) private(i)
     for (i = 0; i < nx; i++) {
         output[i] = data[i];
         output[i + nx] = data[i + nx];
@@ -1114,9 +1139,9 @@ PySepMedFilt9(float* data, int nx, int ny)
         output[nxny - nx - nx - nx - nx + i] = data[nxny - nx - nx - nx - nx
             + i];
     }
-#pragma omp parallel for firstprivate(output,nx,ny) private(i,nxj)
-    for (i = 0; i < ny; i++) {
-        nxj = nx * i;
+#pragma omp parallel for firstprivate(output, data, nx, ny) private(j, nxj)
+    for (j = 0; j < ny; j++) {
+        nxj = nx * j;
         output[nxj] = data[nxj];
         output[nxj + 1] = data[nxj + 1];
         output[nxj + 2] = data[nxj + 2];
@@ -1132,8 +1157,8 @@ PySepMedFilt9(float* data, int nx, int ny)
 
 /* Subsample an array 2x2 given an input array data with size nx x ny. Each
  * pixel is replicated into 4 pixels; no averaging is performed. Data should
- * be striped along in the x direction such that the memory location of pixel
- * i,j is data[nx *j + i].
+ * be striped in the x direction such that the memory location of pixel i,j is
+ * data[nx *j + i].
  */
 float*
 PySubsample(float* data, int nx, int ny)
@@ -1142,8 +1167,8 @@ PySubsample(float* data, int nx, int ny)
         "PySubample(data, nx, ny) -> float*\n\n\
         Subsample an array 2x2 given an input array data with size nx x ny.\
         Each pixel is replicated into 4 pixels; no averaging is performed. \
-        Data should be striped along in the x direction such that the \
-        memory location of pixel i,j is data[nx *j + i].");
+        Data should be striped in the x direction such that the memory \
+        location of pixel i,j is data[nx *j + i].");
 
     /* Output array to return */
     float* output = (float *) malloc(4 * nx * ny * sizeof(float));
@@ -1154,8 +1179,8 @@ PySubsample(float* data, int nx, int ny)
     int i, j, nxj, padnxj;
 
     /* Loop over all pixels */
-#pragma omp parallel for firstprivate(padnx,data,output,nx,ny) \
-    private(i,j,nxj,padnxj)
+#pragma omp parallel for firstprivate(data, output, nx, ny, padnx) \
+    private(i, j, nxj, padnxj)
     for (j = 0; j < ny; j++) {
         nxj = nx * j;
         padnxj = 2 * padnx * j;
@@ -1171,20 +1196,21 @@ PySubsample(float* data, int nx, int ny)
     return output;
 }
 
-/* Rebin 2x2 an array with size (2 * nx) x (2 * ny). Rebin the array by block
+/* Rebin an array 2x2, with size (2 * nx) x (2 * ny). Rebin the array by block
  * averaging 4 pixels back into 1. This is effectively the opposite of
  * subsample (although subsample does not do an average). Data should be
- * striped along in the x direction such that the memory location of pixel
- * i,j is data[nx *j + i]. */
+ * striped in the x direction such that the memory location of pixel i,j is
+ * data[nx *j + i].
+ */
 float*
 PyRebin(float* data, int nx, int ny)
 {
     PyDoc_STRVAR(PyRebin__doc__,
         "PyRebin(data, nx, ny) -> float*\n\n\
-        Rebin 2x2 an array with size (2 * nx) x (2 * ny). Rebin the array by \
+        Rebin an array 2x2, with size (2 * nx) x (2 * ny). Rebin the array by \
         block averaging 4 pixels back into 1. This is effectively the \
         opposite of subsample (although subsample does not do an average). \
-        Data should be striped along in the x direction such that the memory \
+        Data should be striped in the x direction such that the memory \
         location of pixel i,j is data[nx *j + i].");
 
     /* Size of original array */
@@ -1218,16 +1244,18 @@ PyRebin(float* data, int nx, int ny)
 }
 
 /* Convolve an image of size nx x ny with a kernel of size  kernx x kerny.
- * Data should be striped along in the x direction such that the memory
- * location of pixel i,j is data[nx *j + i]. */
+ * Data and kernel should both be striped in the x direction such that the
+ * memory location of pixel i,j is data[nx *j + i].
+ */
 float*
 PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny)
 {
     PyDoc_STRVAR(PyConvolve__doc__,
         "PyConvolve(data, kernel, nx, ny, kernx, kerny) -> float*\n\n\
         Convolve an image of size nx x ny with a a kernel of size \
-        kernx x kerny. Data should be striped along in the x direction such \
-        that the memory location of pixel i,j is data[nx *j + i].");
+        kernx x kerny. Data and kernel should both be striped along the x \
+        direction such that the memory location of pixel i,j is \
+        data[nx *j + i].");
 
     /* Get the width of the borders that we will pad with zeros */
     int bnx = (kernx - 1) / 2;
@@ -1265,7 +1293,9 @@ PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny)
 
     /* Set the borders of padarr = 0.0
      * Fill the rest of the padded array with the input data. */
-#pragma omp parallel for firstprivate(padarr,data,nx,ny,padnx,padny, bnx, bny, xmaxgood, ymaxgood) private(nxj,padnxj,i,j)
+#pragma omp parallel for \
+    firstprivate(padarr, data, nx, padnx, padny, bnx, bny, xmaxgood, ymaxgood)\
+    private(nxj, padnxj, i, j)
     for (j = 0; j < padny; j++) {
         padnxj = padnx * j;
         nxj = nx * (j - bny);
@@ -1282,7 +1312,9 @@ PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny)
 
     /* Calculate the convolution  */
     /* Loop over all pixels */
-#pragma omp parallel for firstprivate(padarr,output,nx,ny,padnx, bnx, bny, kernx) private(nxj,padnxj,kernxl, padnxl, i,j,k,l, sum)
+#pragma omp parallel for \
+    firstprivate(padarr, output, nx, ny, padnx, bnx, bny, kernx) \
+    private(nxj, padnxj, kernxl, padnxl, i, j, k, l, sum)
     for (j = 0; j < ny; j++) {
         nxj = nx * j;
         /* Note the + bvy in padnxj */
@@ -1308,25 +1340,26 @@ PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny)
     return output;
 }
 
-/* Convolve an image of size nx x ny the following kernel
+/* Convolve an image of size nx x ny the following kernel:
  *  0 -1  0
  * -1  4 -1
  *  0 -1  0
  * This is a discrete version of the Laplacian operator.
- * Data should be striped along in the x direction such that the memory
- * location of pixel i,j is data[nx *j + i]. */
+ * Data should be striped in the x direction such that the memory location of
+ * pixel i,j is data[nx *j + i].
+ */
 float*
 PyLaplaceConvolve(float* data, int nx, int ny)
 {
     PyDoc_STRVAR(PyLaplaceConvolve__doc__,
         "PyLaplaceConvolve(data, nx, ny) -> float*\n\n\
-        Convolve an image of size nx x ny the following kernel\n\
+        Convolve an image of size nx x ny the following kernel:\n\
          0 -1  0\n\
         -1  4 -1\n\
          0 -1  0\n\
         This is a discrete version of the Laplacian operator. Data should be \
-        striped along in the x direction such that the memory location of \
-        pixel i,j is data[nx *j + i].");
+        striped in the x direction such that the memory location of pixel i,j \
+        is data[nx *j + i].");
 
     /* Precompute the total number of pixels in the image */
     int nxny = nx * ny;
@@ -1345,7 +1378,8 @@ PyLaplaceConvolve(float* data, int nx, int ny)
 
     /*Loop over all of the pixels except the edges which we will do explicitly
      * below */
-#pragma omp parallel for firstprivate(nx,ny,nxny,output,data) private(i,j,nxj,p)
+#pragma omp parallel for firstprivate(nx, ny, output, data) \
+    private(i, j, nxj, p)
     for (j = 1; j < ny - 1; j++) {
         nxj = nx * j;
         for (i = 1; i < nx - 1; i++) {
@@ -1361,9 +1395,11 @@ PyLaplaceConvolve(float* data, int nx, int ny)
 
     /* Leave the corners until the very end */
 
+#pragma omp parallel firstprivate(output, data, nx, nxny) private(i)
     /* Top and Bottom Rows */
     for (i = 1; i < nx - 1; i++) {
         output[i] = 4.0 * data[i] - data[i + 1] - data[i - 1] - data[i + nx];
+
         p = 4.0 * data[i + nxny - nx];
         p -= data[i + 1 + nxny - nx];
         p -= data[i + nxny - nx - 1];
@@ -1371,6 +1407,7 @@ PyLaplaceConvolve(float* data, int nx, int ny)
         output[i + nxny - nx] = p;
     }
 
+#pragma omp parallel firstprivate(output, data, nx, ny) private(j, nxj)
     /* First and Last Column */
     for (j = 1; j < ny - 1; j++) {
         nxj = nx * j;
@@ -1408,14 +1445,15 @@ PyLaplaceConvolve(float* data, int nx, int ny)
 /* Perform a boolean dilation on an array of size nx x ny.
  * Dilation is the boolean equivalent of a convolution but using logical ors
  * instead of a sum.
- * We apply the following kernel
+ * We apply the following kernel:
  * 1 1 1
  * 1 1 1
  * 1 1 1
  * The binary dilation is not computed for a 1 pixel border around the image.
  * These pixels are copied from the input data. Data should be striped along
  * the x direction such that the memory location of pixel i,j is
- * data[i + nx * j]. */
+ * data[i + nx * j].
+ */
 bool*
 PyDilate3(bool* data, int nx, int ny)
 {
@@ -1423,7 +1461,7 @@ PyDilate3(bool* data, int nx, int ny)
         "PyDilate3(data, nx, ny) -> bool*\n\n\
         Perform a boolean dilation on an array of size nx x ny. \
         Dilation is the boolean equivalent of a convolution but using logical \
-        or instead of a sum. We apply the following kernel\n\
+        or instead of a sum. We apply the following kernel:\n\
         1 1 1\n\
         1 1 1\n\
         1 1 1\n\
@@ -1475,11 +1513,13 @@ PyDilate3(bool* data, int nx, int ny)
         }
     }
 
+#pragma omp parallel firstprivate(output, data, nx, nxny) private(i)
     /* For the borders, copy the data from the input array */
     for (i = 0; i < nx; i++) {
         output[i] = data[i];
         output[nxny - nx + i] = data[nxny - nx + i];
     }
+#pragma omp parallel firstprivate(output, data, nx, ny) private(j, nxj)
     for (j = 0; j < ny; j++) {
         nxj = nx * j;
         output[nxj] = data[nxj];
@@ -1492,7 +1532,7 @@ PyDilate3(bool* data, int nx, int ny)
 /* Do niter iterations of boolean dilation on an array of size nx x ny.
  * Dilation is the boolean equivalent of a convolution but using logical ors
  * instead of a sum.
- * We apply the following kernel
+ * We apply the following kernel:
  * 0 1 1 1 0
  * 1 1 1 1 1
  * 1 1 1 1 1
@@ -1500,7 +1540,8 @@ PyDilate3(bool* data, int nx, int ny)
  * 0 1 1 1 0
  * The edges are padded with zeros so that the dilation operator is defined for
  * all pixels. Data should be striped along the x direction such that the
- * memory location of pixel i,j is data[i + nx * j]. */
+ * memory location of pixel i,j is data[i + nx * j].
+ */
 bool*
 PyDilate5(bool* data, int niter, int nx, int ny)
 {
@@ -1508,7 +1549,7 @@ PyDilate5(bool* data, int niter, int nx, int ny)
         "PyDilate5(data, nx, ny) -> bool*\n\n\
         Do niter iterations of boolean dilation on an array of size nx x ny.\
         Dilation is the boolean equivalent of a convolution but using logical \
-        ors instead of a sum. We apply the following kernel\n\
+        ors instead of a sum. We apply the following kernel:\n\
         0 1 1 1 0\n\
         1 1 1 1 1\n\
         1 1 1 1 1\n\
@@ -1538,6 +1579,7 @@ PyDilate5(bool* data, int niter, int nx, int ny)
      * it below inside the pragma. */
     bool p;
 
+#pragma omp parallel firstprivate(padarr, padnx, padnxny) private(i)
     /* Initialize the borders of the padded array to zero */
     for (i = 0; i < padnx; i++) {
         padarr[i] = false;
@@ -1546,13 +1588,16 @@ PyDilate5(bool* data, int niter, int nx, int ny)
         padarr[padnxny - padnx - padnx + i] = false;
     }
 
-    for (i = 0; i < padny; i++) {
-        padarr[padnx * i] = false;
-        padarr[padnx * i + 1] = false;
-        padarr[padnx * i + padnx - 1] = false;
-        padarr[padnx * i + padnx - 2] = false;
+#pragma omp parallel firstprivate(padarr, padnx, padny) private(j, padnxj)
+    for (j = 0; j < padny; j++) {
+        padnxj = padnx * j;
+        padarr[padnxj] = false;
+        padarr[padnxj + 1] = false;
+        padarr[padnxj + padnx - 1] = false;
+        padarr[padnxj + padnx - 2] = false;
     }
 
+#pragma omp parallel firstprivate(output, data, nxny) private(i)
     /* Initialize the output array to the input data */
     for (i = 0; i < nxny; i++) {
         output[i] = data[i];
@@ -1560,7 +1605,7 @@ PyDilate5(bool* data, int niter, int nx, int ny)
 
     /* Outer iteration loop */
     for (iter = 0; iter < niter; iter++) {
-#pragma omp parallel for firstprivate(padarr, output, nx, ny, padnx, padny, iter) \
+#pragma omp parallel for firstprivate(padarr, output, nx, ny, padnx, iter) \
     private(nxj, padnxj, i, j)
         /* Initialize the padded array to the output from the latest
          * iteration*/
@@ -1573,7 +1618,7 @@ PyDilate5(bool* data, int niter, int nx, int ny)
         }
 
         /* Loop over all pixels */
-#pragma omp parallel for firstprivate(padarr, output, nx, ny, padnx, padny, iter) \
+#pragma omp parallel for firstprivate(padarr, output, nx, ny, padnx, iter) \
     private(nxj, padnxj, i, j, p)
         for (j = 0; j < ny; j++) {
             nxj = nx * j;

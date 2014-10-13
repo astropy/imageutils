@@ -1,3 +1,4 @@
+# cython: profile=True
 """============================================================================
 // Name        : Lacosmicx
 // Author      : Curtis McCully
