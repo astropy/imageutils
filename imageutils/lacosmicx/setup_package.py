@@ -10,9 +10,9 @@ def get_extensions():
         cyExts  = cythonize("imageutils/lacosmicx/la*.pyx")
         for ext in cyExts:
             ext.include_dirs = [np.get_include()]
-            ext.extra_compile_args =['-O3','-fopenmp','-funroll-loops','-ffast-math']   
+            ext.extra_compile_args =['-g','-O3','-fopenmp','-funroll-loops','-ffast-math']   
             ext.libraries = ['gomp']
-            ext.extra_link_args=['-fopenmp']
+            ext.extra_link_args=['-g','-fopenmp']
             ext.sources.append('imageutils/lacosmicx/laxutils.c')
             print(ext.sources)
 

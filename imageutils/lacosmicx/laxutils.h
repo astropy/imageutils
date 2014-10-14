@@ -42,8 +42,8 @@ PyOptMed25(float* a);
  * The data should be striped along the x direction, such that pixel i,j in
  * the 2D image should have memory location data[i + nx *j].
  */
-float*
-PyMedFilt3(float* data, int nx, int ny);
+void
+PyMedFilt3(float* data, float* output, int nx, int ny);
 
 /* Calculate the 5x5 median filter of an array data that has dimensions
  * nx x ny.The median filter is not calculated for a 2 pixel border
@@ -51,8 +51,8 @@ PyMedFilt3(float* data, int nx, int ny);
  * The data should be striped along the x direction, such that pixel i,j in
  * the 2D image should have memory location data[i + nx *j].
  */
-float*
-PyMedFilt5(float* data, int nx, int ny);
+void
+PyMedFilt5(float* data, float* output, int nx, int ny);
 
 /* Calculate the 7x7 median filter of an array data that has dimensions
  * nx x ny.The median filter is not calculated for a 3 pixel border
@@ -60,8 +60,8 @@ PyMedFilt5(float* data, int nx, int ny);
  * The data should be striped along the x direction, such that pixel i,j
  * in the 2D image should have memory location data[i + nx *j].
  */
-float*
-PyMedFilt7(float* data, int nx, int ny);
+void
+PyMedFilt7(float* data, float* output, int nx, int ny);
 
 /* Calculate the 3x3 separable median filter of an array data that has
  * dimensions nx x ny. The median filter is not calculated for a 1 pixel border
@@ -70,8 +70,8 @@ PyMedFilt7(float* data, int nx, int ny);
  * in the 2D image should have memory location data[i + nx *j]. Note that the
  * rows are median filtered first, followed by the columns.
  */
-float*
-PySepMedFilt3(float* data, int nx, int ny);
+void
+PySepMedFilt3(float* data, float* output, int nx, int ny);
 
 /* Calculate the 5x5 separable median filter of an array data that has
  * dimensions nx x ny. The median filter is not calculated for a 2 pixel border
@@ -80,8 +80,8 @@ PySepMedFilt3(float* data, int nx, int ny);
  * in the 2D image should have memory location data[i + nx *j]. Note that the
  * rows are median filtered first, followed by the columns.
  */
-float*
-PySepMedFilt5(float* data, int nx, int ny);
+void
+PySepMedFilt5(float* data, float* output, int nx, int ny);
 
 /* Calculate the 7x7 separable median filter of an array data that has
  * dimensions nx x ny. The median filter is not calculated for a 3 pixel border
@@ -90,8 +90,8 @@ PySepMedFilt5(float* data, int nx, int ny);
  * in the 2D image should have memory location data[i + nx *j]. Note that the
  * rows are median filtered first, followed by the columns.
  */
-float*
-PySepMedFilt7(float* data, int nx, int ny);
+void
+PySepMedFilt7(float* data, float* output, int nx, int ny);
 
 /* Calculate the 9x9 separable median filter of an array data that has
  * dimensions nx x ny. The median filter is not calculated for a 4 pixel border
@@ -100,16 +100,16 @@ PySepMedFilt7(float* data, int nx, int ny);
  * the 2D image should have memory location data[i + nx *j]. Note that the rows
  * are median filtered first, followed by the columns.
  */
-float*
-PySepMedFilt9(float* data, int nx, int ny);
+void
+PySepMedFilt9(float* data, float* output, int nx, int ny);
 
 /* Subsample an array 2x2 given an input array data with size nx x ny. Each
  * pixel is replicated into 4 pixels; no averaging is performed. Data should
  * be striped in the x direction such that the memory location of pixel i,j is
  * data[nx *j + i].
  */
-float*
-PySubsample(float* data, int nx, int ny);
+void
+PySubsample(float* data, float* output, int nx, int ny);
 
 /* Rebin an array 2x2, with size (2 * nx) x (2 * ny). Rebin the array by block
  * averaging 4 pixels back into 1. This is effectively the opposite of
@@ -117,17 +117,18 @@ PySubsample(float* data, int nx, int ny);
  * striped in the x direction such that the memory location of pixel i,j is
  * data[nx *j + i].
  */
-float*
-PyRebin(float* data, int nx, int ny);
+void
+PyRebin(float* data, float* output, int nx, int ny);
 
 /* Convolve an image of size nx x ny with a kernel of size  kernx x kerny.
  * Data and kernel should both be striped in the x direction such that the
  * memory location of pixel i,j is data[nx *j + i].
  */
-float*
-PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny);
+void
+PyConvolve(float* data, float* kernel, float* output, int nx, int ny,
+           int kernx, int kerny);
 
-/* Convolve an image of size nx x ny the following kernel:
+/* Convolve an array of size nx x ny the following kernel:
  *  0 -1  0
  * -1  4 -1
  *  0 -1  0
@@ -135,8 +136,8 @@ PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny);
  * Data should be striped in the x direction such that the memory location of
  * pixel i,j is data[nx *j + i].
  */
-float*
-PyLaplaceConvolve(float* data, int nx, int ny);
+void
+PyLaplaceConvolve(float* data, float* output, int nx, int ny);
 
 /* Perform a boolean dilation on an array of size nx x ny.
  * Dilation is the boolean equivalent of a convolution but using logical ors
@@ -150,8 +151,8 @@ PyLaplaceConvolve(float* data, int nx, int ny);
  * the x direction such that the memory location of pixel i,j is
  * data[i + nx * j].
  */
-bool*
-PyDilate3(bool* data, int nx, int ny);
+void
+PyDilate3(bool* data, bool* output, int nx, int ny);
 
 /* Do niter iterations of boolean dilation on an array of size nx x ny.
  * Dilation is the boolean equivalent of a convolution but using logical ors
@@ -166,7 +167,7 @@ PyDilate3(bool* data, int nx, int ny);
  * all pixels. Data should be striped along the x direction such that the
  * memory location of pixel i,j is data[i + nx * j].
  */
-bool*
-PyDilate5(bool* data, int iter, int nx, int ny);
+void
+PyDilate5(bool* data, bool* output, int iter, int nx, int ny);
 
 #endif /* LAXUTILS_H_ */

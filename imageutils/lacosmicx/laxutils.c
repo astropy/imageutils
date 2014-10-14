@@ -391,8 +391,8 @@ PyOptMed25(float* p)
  * The data should be striped along the x direction, such that pixel i,j
  * in the 2D image should have memory location data[i + nx *j].
  */
-float*
-PyMedFilt3(float* data, int nx, int ny)
+void
+PyMedFilt3(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyMedFilt3__doc__,
         "PyMedFilt3(data, nx, ny) -> float*\n\n\
@@ -404,8 +404,6 @@ PyMedFilt3(float* data, int nx, int ny)
 
     /*Total size of the array */
     int nxny = nx * ny;
-    /*Output array to return*/
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Loop indices */
     int i, j, nxj;
@@ -462,7 +460,7 @@ PyMedFilt3(float* data, int nx, int ny)
         output[nxj + nx - 1] = data[nxj + nx - 1];
     }
 
-    return output;
+    return;
 }
 
 /* Calculate the 5x5 median filter of an array data that has dimensions
@@ -471,8 +469,8 @@ PyMedFilt3(float* data, int nx, int ny)
  * The data should be striped along the x direction, such that pixel i,j
  * in the 2D image should have memory location data[i + nx *j].
  */
-float*
-PyMedFilt5(float* data, int nx, int ny)
+void
+PyMedFilt5(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyMedFilt5__doc__,
         "PyMedFilt5(data, nx, ny) -> float*\n\n\
@@ -484,8 +482,6 @@ PyMedFilt5(float* data, int nx, int ny)
 
     /*Total size of the array */
     int nxny = nx * ny;
-    /*Output array to return*/
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Loop indices */
     int i, j, nxj;
@@ -547,7 +543,7 @@ PyMedFilt5(float* data, int nx, int ny)
         output[nxj + nx - 2] = data[nxj + nx - 2];
     }
 
-    return output;
+    return;
 }
 
 /* Calculate the 7x7 median filter of an array data that has dimensions
@@ -556,8 +552,8 @@ PyMedFilt5(float* data, int nx, int ny)
  * The data should be striped along the x direction, such that pixel i,j
  * in the 2D image should have memory location data[i + nx *j].
  */
-float*
-PyMedFilt7(float* data, int nx, int ny)
+void
+PyMedFilt7(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyMedFilt7__doc__,
         "PyMedFilt7(data, nx, ny) -> float*\n\n\
@@ -569,8 +565,6 @@ PyMedFilt7(float* data, int nx, int ny)
 
     /*Total size of the array */
     int nxny = nx * ny;
-    /*Output array to return*/
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Loop indices */
     int i, j, nxj;
@@ -636,7 +630,7 @@ PyMedFilt7(float* data, int nx, int ny)
         output[nxj + nx - 3] = data[nxj + nx - 3];
     }
 
-    return output;
+    return;
 }
 
 /* Calculate the 3x3 separable median filter of an array data that has
@@ -646,8 +640,8 @@ PyMedFilt7(float* data, int nx, int ny)
  * in the 2D image should have memory location data[i + nx *j]. Note that the
  * rows are median filtered first, followed by the columns.
  */
-float*
-PySepMedFilt3(float* data, int nx, int ny)
+void
+PySepMedFilt3(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySepMedFilt3__doc__,
         "PySepMedFilt3(data, nx, ny) -> float*\n\n\
@@ -664,9 +658,6 @@ PySepMedFilt3(float* data, int nx, int ny)
     /* Output array for the median filter of the rows. We later median filter
      * the columns of this array. */
     float* rowmed = (float *) malloc(nxny * sizeof(float));
-
-    /* Define the output array to be returned */
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Loop indices */
     int i, j, nxj;
@@ -749,7 +740,7 @@ PySepMedFilt3(float* data, int nx, int ny)
         output[nxj + nx - 1] = data[nxj + nx - 1];
     }
 
-    return output;
+    return;
 }
 
 /* Calculate the 5x5 separable median filter of an array data that has
@@ -759,8 +750,8 @@ PySepMedFilt3(float* data, int nx, int ny)
  * in the 2D image should have memory location data[i + nx *j]. Note that the
  * rows are median filtered first, followed by the columns.
  */
-float*
-PySepMedFilt5(float* data, int nx, int ny)
+void
+PySepMedFilt5(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySepMedFilt5__doc__,
         "PySepMedFilt5(data, nx, ny) -> float*\n\n\
@@ -777,9 +768,6 @@ PySepMedFilt5(float* data, int nx, int ny)
     /* Output array for the median filter of the rows. We later median filter
      * the columns of this array. */
     float* rowmed = (float *) malloc(nxny * sizeof(float));
-
-    /* Define the output array to be returned */
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Loop indices */
     int i, j, nxj;
@@ -873,7 +861,7 @@ PySepMedFilt5(float* data, int nx, int ny)
         output[nxj + nx - 2] = data[nxj + nx - 2];
     }
 
-    return output;
+    return;
 }
 
 /* Calculate the 7x7 separable median filter of an array data that has
@@ -883,8 +871,8 @@ PySepMedFilt5(float* data, int nx, int ny)
  * in the 2D image should have memory location data[i + nx *j]. Note that the
  * rows are median filtered first, followed by the columns.
  */
-float*
-PySepMedFilt7(float* data, int nx, int ny)
+void
+PySepMedFilt7(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySepMedFilt7__doc__,
         "PySepMedFilt7(data, nx, ny) -> float*\n\n\
@@ -901,9 +889,6 @@ PySepMedFilt7(float* data, int nx, int ny)
     /* Output array for the median filter of the rows. We later median filter
      * the columns of this array. */
     float* rowmed = (float *) malloc(nxny * sizeof(float));
-
-    /* Define the output array to be returned */
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Loop indices */
     int i, j, nxj;
@@ -1008,7 +993,7 @@ PySepMedFilt7(float* data, int nx, int ny)
         output[nxj + nx - 3] = data[nxj + nx - 3];
     }
 
-    return output;
+    return;
 }
 
 /* Calculate the 9x9 separable median filter of an array data that has
@@ -1018,8 +1003,8 @@ PySepMedFilt7(float* data, int nx, int ny)
  * in the 2D image should have memory location data[i + nx *j]. Note that the
  * rows are median filtered first, followed by the columns.
  */
-float*
-PySepMedFilt9(float* data, int nx, int ny)
+void
+PySepMedFilt9(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySepMedFilt9__doc__,
         "PySepMedFilt9(data, nx, ny) -> float*\n\n\
@@ -1036,9 +1021,6 @@ PySepMedFilt9(float* data, int nx, int ny)
     /* Output array for the median filter of the rows. We later median filter
      * the columns of this array. */
     float* rowmed = (float *) malloc(nxny * sizeof(float));
-
-    /* Define the output array to be returned */
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Loop indices */
     int i, j, nxj;
@@ -1152,7 +1134,7 @@ PySepMedFilt9(float* data, int nx, int ny)
         output[nxj + nx - 4] = data[nxj + nx - 4];
     }
 
-    return output;
+    return;
 }
 
 /* Subsample an array 2x2 given an input array data with size nx x ny. Each
@@ -1160,8 +1142,8 @@ PySepMedFilt9(float* data, int nx, int ny)
  * be striped in the x direction such that the memory location of pixel i,j is
  * data[nx *j + i].
  */
-float*
-PySubsample(float* data, int nx, int ny)
+void
+PySubsample(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySubsample__doc__,
         "PySubample(data, nx, ny) -> float*\n\n\
@@ -1170,8 +1152,6 @@ PySubsample(float* data, int nx, int ny)
         Data should be striped in the x direction such that the memory \
         location of pixel i,j is data[nx *j + i].");
 
-    /* Output array to return */
-    float* output = (float *) malloc(4 * nx * ny * sizeof(float));
     /* Precalculate the new length; minor optimization */
     int padnx = 2 * nx;
 
@@ -1193,7 +1173,7 @@ PySubsample(float* data, int nx, int ny)
         }
     }
 
-    return output;
+    return;
 }
 
 /* Rebin an array 2x2, with size (2 * nx) x (2 * ny). Rebin the array by block
@@ -1202,8 +1182,8 @@ PySubsample(float* data, int nx, int ny)
  * striped in the x direction such that the memory location of pixel i,j is
  * data[nx *j + i].
  */
-float*
-PyRebin(float* data, int nx, int ny)
+void
+PyRebin(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyRebin__doc__,
         "PyRebin(data, nx, ny) -> float*\n\n\
@@ -1218,9 +1198,6 @@ PyRebin(float* data, int nx, int ny)
 
     /* Loop variables */
     int i, j, nxj, padnxj;
-
-    /* Output array to return */
-    float* output = (float *) malloc(nx * ny * sizeof(float));
 
     /* Pixel value p. Each thread needs its own copy of this variable so we
      * wait to initialize it until the pragma below */
@@ -1240,15 +1217,16 @@ PyRebin(float* data, int nx, int ny)
             output[i + nxj] = p;
         }
     }
-    return output;
+    return;
 }
 
 /* Convolve an image of size nx x ny with a kernel of size  kernx x kerny.
  * Data and kernel should both be striped in the x direction such that the
  * memory location of pixel i,j is data[nx *j + i].
  */
-float*
-PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny)
+void
+PyConvolve(float* data, float* kernel, float* output, int nx, int ny,
+           int kernx, int kerny)
 {
     PyDoc_STRVAR(PyConvolve__doc__,
         "PyConvolve(data, kernel, nx, ny, kernx, kerny) -> float*\n\n\
@@ -1271,9 +1249,6 @@ PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny)
 
     /*Allocate the padded array */
     float* padarr = (float *) malloc(padnxny * sizeof(float));
-
-    /*Allocate the output array to be returned */
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Loop variables. These should all be thread private. */
     int i, j;
@@ -1337,7 +1312,7 @@ PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny)
 
     free(padarr);
 
-    return output;
+    return;
 }
 
 /* Convolve an image of size nx x ny the following kernel:
@@ -1348,8 +1323,8 @@ PyConvolve(float* data, float* kernel, int nx, int ny, int kernx, int kerny)
  * Data should be striped in the x direction such that the memory location of
  * pixel i,j is data[nx *j + i].
  */
-float*
-PyLaplaceConvolve(float* data, int nx, int ny)
+void
+PyLaplaceConvolve(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyLaplaceConvolve__doc__,
         "PyLaplaceConvolve(data, nx, ny) -> float*\n\n\
@@ -1366,9 +1341,6 @@ PyLaplaceConvolve(float* data, int nx, int ny)
 
     /* Loop variables */
     int i, j, nxj;
-
-    /* Output array to return */
-    float* output = (float *) malloc(nxny * sizeof(float));
 
     /* Pixel value p. Each thread will need its own copy of this so we need to
      * make it private*/
@@ -1439,7 +1411,7 @@ PyLaplaceConvolve(float* data, int nx, int ny)
     p -= data[nxny - 1 - nx];
     output[nxny - 1] = p;
 
-    return output;
+    return;
 }
 
 /* Perform a boolean dilation on an array of size nx x ny.
@@ -1454,8 +1426,8 @@ PyLaplaceConvolve(float* data, int nx, int ny)
  * the x direction such that the memory location of pixel i,j is
  * data[i + nx * j].
  */
-bool*
-PyDilate3(bool* data, int nx, int ny)
+void
+PyDilate3(bool* data, bool* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyDilate3__doc__,
         "PyDilate3(data, nx, ny) -> bool*\n\n\
@@ -1475,9 +1447,6 @@ PyDilate3(bool* data, int nx, int ny)
 
     /* Loop variables */
     int i, j, nxj;
-
-    /* Output array to return */
-    bool* output = (bool *) malloc(nxny * sizeof(bool));
 
     /* Pixel value p. Each thread needs its own unique copy of this so we don't
      initialize this until the pragma below. */
@@ -1526,7 +1495,7 @@ PyDilate3(bool* data, int nx, int ny)
         output[nxj - 1 + nx] = data[nxj - 1 + nx];
     }
 
-    return output;
+    return;
 }
 
 /* Do niter iterations of boolean dilation on an array of size nx x ny.
@@ -1542,8 +1511,8 @@ PyDilate3(bool* data, int nx, int ny)
  * all pixels. Data should be striped along the x direction such that the
  * memory location of pixel i,j is data[i + nx * j].
  */
-bool*
-PyDilate5(bool* data, int niter, int nx, int ny)
+void
+PyDilate5(bool* data, bool* output, int niter, int nx, int ny)
 {
     PyDoc_STRVAR(PyDilate5__doc__,
         "PyDilate5(data, nx, ny) -> bool*\n\n\
@@ -1568,8 +1537,6 @@ PyDilate5(bool* data, int niter, int nx, int ny)
 
     /* The padded array to work on */
     bool* padarr = (bool *) malloc(padnxny * sizeof(bool));
-    /* The output array to return */
-    bool* output = (bool *) malloc(nxny * sizeof(bool));
 
     /*Loop indices */
     int i, j, nxj, padnxj;
@@ -1676,5 +1643,5 @@ PyDilate5(bool* data, int niter, int nx, int ny)
     }
     free(padarr);
 
-    return output;
+    return;
 }
