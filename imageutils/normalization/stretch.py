@@ -12,9 +12,9 @@ from astropy.utils.misc import InheritDocstrings
 
 from .transform import BaseTransform
 
-__all__ = ["LinearStretch", "SqrtStretch", "PowerStretch", "PowerDistStretch",
-           "SquaredStretch", "LogStretch", "AsinhStretch", "SinhStretch",
-           "HistEqStretch", "ContrastBiasStretch"]
+__all__ = ["BaseStretch", "LinearStretch", "SqrtStretch", "PowerStretch",
+           "PowerDistStretch", "SquaredStretch", "LogStretch", "AsinhStretch",
+           "SinhStretch", "HistEqStretch", "ContrastBiasStretch"]
 
 
 def logn(n, x, out=None):

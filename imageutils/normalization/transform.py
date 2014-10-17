@@ -4,6 +4,7 @@ from __future__ import division, print_function
 from astropy.extern import six
 from astropy.utils.misc import InheritDocstrings
 
+__all__ = ["BaseTransform", "CompositeTransform"]
 
 class BaseTransform(object):
     def __add__(self, other):
