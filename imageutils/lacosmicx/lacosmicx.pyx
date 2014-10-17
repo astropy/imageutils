@@ -1,53 +1,9 @@
-# cython: profile=True
 """
 Name : Lacosmicx
 Author : Curtis McCully
 Date : October 2014
-
- About
- =====
-
- Lacosmicx is designed to detect cosmic rays in images (numpy arrays),
- based on Pieter van Dokkum's L.A.Cosmic algorithm.
-
- Much of this was originally adapted from cosmics.py written by Malte Tewes.
- I have ported all of the slow functions to Cython/C, and optimized
- where I can. This is designed to be as fast as possible so some of the
- readability has been sacrificed, specifically in the C code.
-
- L.A.Cosmic = LAplacian Cosmic ray detection
-
- U{http://www.astro.yale.edu/dokkum/lacosmic/}
-
- (article : U{http://arxiv.org/abs/astro-ph/0108003})
-
- This code requires Cython, preferably version >0.21.
-
- Parallelization is achieved using OpenMP. This code should compile (although
- the Cython files may have issues) using a compiler that does not support OMP,
- e.g. clang.
-
- Differences from original LACosmic
- ===================
-
- - Automatic recognition of saturated stars, including their trails.
- This avoids treating such stars as large cosmic rays.
-
- -I have tried to optimize all of the code as much as possible while
- maintaining the integrity of the algorithm. One of the key speedups is to
- use a separable median filter instead of the true median filter. While these
- are not identical, they produce comparable results and the separable version
- is much faster.
-
- -This implementation is much faster than the Python by as much as a factor of
- 17 depending on the given parameters, even without running multiple threads.
- With multiple threads, this can be increased easily by another factor of 2.
- This implementation is much faster than the original IRAF version
- (orders of magnitude).
-
- -The arrays always must be C-contiguous, thus all loops are y outer, x inner.
- Note that this follows the Pyfits convention.
- """
+"""
+# cython: profile=True
 
 import numpy as np
 cimport numpy as np
@@ -60,7 +16,6 @@ from libcpp cimport bool
 from laxwrappers import *
 
 from cython.parallel cimport parallel, prange
-cimport openmp
 
 from libc.stdlib cimport abort, malloc, free
 
@@ -73,126 +28,149 @@ cdef extern from "laxutils.h":
 @cython.cdivision(True)
 def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] inmask=None,
-        float sigclip=4.5, float sigfrac=0.3, float objlim=5.0,
-        float gain=1.0, float readnoise=6.5, float satlevel=65536.0, float pssl = 0.0,
-        int niter=4, sepmed=True, cleantype='meanmask',
-        fsmode='median', psfmodel='gauss',
-        psffwhm=2.5, psfsize=7, psfk=None, psfbeta=4.765, bool verbose = False, int nthreads = 4, bool retclean = False):
-    """ Run the LACosmic algorithm to detect cosmic rays on an array.
+        float sigclip=4.5, float sigfrac=0.3, float objlim=5.0, float gain=1.0,
+        float readnoise=6.5, float satlevel=65536.0, float pssl=0.0,
+        int niter=4, sepmed=True, cleantype='meanmask', fsmode='median',
+        psfmodel='gauss', float psffwhm=2.5, int psfsize=7, psfk=None,
+        float psfbeta=4.765, verbose=False, retclean=False):
+    """run(indat, **kwargs) -> array
+    Run the LACosmic algorithm to detect cosmic rays in an array.
 
-    Keywords:
+    Note: To reproduce the most similar behavior to the original LA Cosmic
+    (written in IRAF), set  inmask = None, satlevel = np.inf, sepmed=False,
+    cleantype='medmask', and fsmode='median'.
+
+    Returns:
     ========
-    indat
-    
-    inmask
-    
-    sigclip
-    
-    sigfrac
-    
-    objlim
-    
-    pssl
-    
-    gain
-    
-    readnoise
-    
-    satlevel
-    
-    niter
-    
-    sepmed
-    
-    cleantype
-    
-    fsmode
-    
-    psfmodel
-    
-    psffwhm
-    
-    psfsize
-    
-    psfk
-    
-    psfbeta
-    
-    verbose
-    
-    nthreads
-    
-     sigclip : increase this if you detect cosmics where there are none.
-               Default is 5.0, a good value for earth-bound images.
-     objlim : increase this if normal stars are detected as cosmics.
-              Default is 5.0, a good value for earth-bound images.
-    
-     sigclip : laplacian-to-noise limit for cosmic ray detection
-     objlim : minimum contrast between laplacian image and fine structure image.
-              Use 5.0 if your image is undersampled, HST, ...
-    
-     satlevel : if we find an agglomeration of pixels above this level,
-                we consider it to be a saturated star and do not try to correct
-                and pixels around it.This is given in electrons
-    
-     pssl is the previously subtracted sky level !
-    
-     real   gain    = 1.0         # gain (electrons/ADU)
-     real   readn   = 6.5              # read noise (electrons)
-     real   skyval  = 0.           # sky level that has been subtracted (ADU)
-     real   sigclip = 4.5          # detection limit for cosmic rays (sigma)
-     real   sigfrac = 0.3       # fractional detection limit for neighboring pixels
-     real   objlim  = 5.0        # contrast limit between CR and underlying object
-     int    niter   = 4         # maximum number of iterations
-    
-    """
-    #Set the number of threads to use for parallel calculations
-    openmp.omp_set_dynamic(1)
-    openmp.omp_set_num_threads(4)
+    If retclean==False, return a cosmic ray mask (boolean) array with values
+        of True where there are cosmic ray detections.
 
-    #Grab the sizes of the input array
+    If retclean==True, return the cosmic ray mask and the cleaned data array.
+
+    Arguments:
+    ========
+    indat: Input data array that will be used for cosmic ray detection.
+
+    Keyword Arguements:
+    ===================
+    inmask: Input bad pixel mask (boolean array). Values of True will be
+        ignored in the cosmic ray detection/cleaning process. Default: None.
+
+    sigclip: Laplacian-to-noise limit for cosmic ray detection. Lower values
+        will flag more pixels as cosmic rays. Default: 4.5.
+
+    sigfrac: Fractional detection limit for neighboring pixels. For cosmic ray
+        neighbor pixels, a lapacian-to-noise detection limit of
+        sigfrac * sigclip will be used. Default: 0.3.
+
+    objlim: Minimum contrast between Laplacian image and the fine structure
+        image. Increase this value if cores of bright stars are flagged as
+        cosmic rays. Default: 5.0.
+
+    pssl: Previously subtracted sky level (in ADU). We always need to work in
+        electrons for cosmic ray detection, so we need to know the sky level
+        that has been subtracted so we can add it back in. Default: 0.0.
+
+    gain: Gain of the image (electrons / ADU). We always need to work in
+        electrons for cosmic ray detection. Default: 1.0
+
+    readnoise: Read noise of the image (electrons). This is used in generating
+        the noise model of the image. Default: 6.5.
+
+    satlevel: Saturation of level of the image (electrons). This value is used
+        to detect saturated stars and pixels at or above this level are added
+        to the mask. Default: 65536.0.
+
+    niter: Number of iterations of the LA Cosmic algorithm to perform.
+        Default: 4.
+
+    sepmed: Use the separable median filter instead of the full median filter.
+        The separable median is not identical to the full median filter, but
+        they are approximately the same and the separable median filter is
+        significantly faster and still detects cosmic rays well.
+        Default: True
+
+    cleantype: Set which clean algorithm is used. The choices are as follows:
+        "median": An umasked 5x5 median filter
+        "medmask": A masked 5x5 median filter
+        "meanmask": A masked 5x5 mean filter
+        "idw": A masked 5x5 inverse distance weighted interpolation
+        Default: "meanmask".
+
+    fsmode: Method to build the fine structure image. Allowed choices are:
+        "median": Use the median filter in the standard LA Cosmic algorithm
+        "convolve": Convolve the image with the psf kernel to calculate the
+            fine structure image.
+        Default: "median".
+
+    psfmodel: Model to use to generate the psf kernel if fsmode == 'convolve'
+        psfk is None. Allowed values are "gauss" and "moffat" which generate
+        Gaussian and Moffat profiles respectively. Default: "gauss".
+
+    psffwhm: Full Width Half Maximum of the PSF to use to generate
+        the kernel. Default: 2.5.
+
+    psfsize: Size of the kernel to calculate. Returned kernel will
+        have size psfsize x psfsize. kernsize should be odd. Default: 7.
+
+    psfk: PSF kernel array to use for the fine structure image if
+        fsmode == 'convolve'. If None and  fsmode == 'convolve', we calculate
+        the psf kernel using the psfmodel. Default: None.
+
+    psfbeta: Moffat beta parameter. Only used if fsmode=='convolve' and
+        psfmodel=='moffat'. Default: 4.765.
+
+    verbose: Print to the screen or not (boolean). Default: False.
+
+    retclean: If True, return both the cleaned array and the crmask:
+        (crmask, cleanarr). If False, return only the cosmic ray mask (crmask).
+        Default: False.
+    """
+
+    # Grab the sizes of the input array
     cdef int nx = indat.shape[1]
     cdef int ny = indat.shape[0]
 
-    #Tell the compiler about the loop indices so it can optimize them.
+    # Tell the compiler about the loop indices so it can optimize them.
     cdef int i, j = 0
 
     # Make a copy of the data as the cleanarr that we work on
-    # This guaruntees that that the data will be contiguous and makes sure we
+    # This guarantees that that the data will be contiguous and makes sure we
     # don't edit the input data.
-    cleanarr = np.empty_like(indat)
+    cleanarr = np.empty((ny, nx), dtype=np.float32)
     # Set the initial values to those of the data array
     cleanarr[:, :] = indat[:, :]
 
-    #Setup the mask
+    # Setup the mask
     if inmask is None:
         # By default don't mask anything
         mask = np.zeros((ny, nx), dtype=np.uint8, order='C')
     else:
         # Make a copy of the input mask
-        mask = np.empty_like(inmask, dtype=np.uint8)
+        mask = np.empty((ny, nx), dtype=np.uint8, order='C')
         mask[:, :] = inmask[:, :]
-
-    # Find the saturated stars and add them to the mask
-    updatemask(np.asarray(cleanarr), np.asarray(mask), satlevel, sepmed)
-
-    #Find the unmasked pixels to calculate the sky.
-    gooddata = np.zeros(nx * ny - np.asarray(mask).sum(), dtype=np.float32,
-                        order='c')
-
-    igoodpix = 0
 
     # Add back in the previously subtracted sky level and multiply by the gain
     # The statistics only work properly with electrons.
     cleanarr += pssl
     cleanarr *= gain
 
+    # Find the saturated stars and add them to the mask
+    updatemask(np.asarray(cleanarr), np.asarray(mask), satlevel, sepmed)
+
+    # Find the unmasked pixels to calculate the sky.
+    gooddata = np.zeros(nx * ny - np.asarray(mask).sum(), dtype=np.float32,
+                        order='c')
+
+    igoodpix = 0
+
     gooddata[:] = cleanarr[np.logical_not(mask)]
 
     # Get the default background level for large cosmic rays.
     backgroundlevel = median(gooddata, len(gooddata))
+    del gooddata
 
-    #Set up the psf kernel if necessary.
+    # Set up the psf kernel if necessary.
     if psfk is None and fsmode == 'convolve':
         # calculate the psf kernel psfk
         if psfmodel == 'gauss':
@@ -240,6 +218,9 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         # Clip noise so that we can take a square root
         m5[m5 < 0.00001] = 0.00001
         noise = np.sqrt(m5 + readnoise * readnoise)
+
+        if cleantype != 'median':
+            del m5
 
         # Laplacian signal to noise ratio :
         s /= 2.0 * noise
@@ -305,9 +286,9 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         # Our CR counter
         numcr = cosmics.sum()
 
-        #Update the crmask with the cosmics we have found
+        # Update the crmask with the cosmics we have found
         crmask[:, :] = np.logical_or(crmask, cosmics)[:, :]
-
+        del cosmics
         if verbose:
             print "{} cosmic pixels this iteration".format(numcr)
 
@@ -319,6 +300,7 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         if cleantype == 'median':
         # Unmasked median filter
             cleanarray[crmask] = m5[crmask]
+            del m5
         # Masked mean filter
         elif cleantype == 'meanmask':
             clean_meanmask(cleanarr, crmask, mask, nx, ny, backgroundlevel)
@@ -333,10 +315,10 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
                             [median, meanmask, medmask, idw]""")
 
     if retclean:
-        output = (crmask, cleanarr)
+        output = (crmask.astype(np.bool), cleanarr)
     else:
         del cleanarr
-        output = crmask
+        output = crmask.astype(np.bool)
     return output
 
 
@@ -346,22 +328,26 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
 def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data,
                np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask,
                float satlevel, bool sepmed):
-    """
-     Uses the satlevel to find saturated stars (not cosmic rays hopefully),
-     and puts the result in the mask.
+    """updatemask(data, mask, satlevel, sepmed)
+     Find staturated stars and puts them in the mask.
+
      This can then be used to avoid these regions in cosmic detection
-     and cleaning procedures.
-     
-    Keywords:
-    ========
-    
-    data
-    
-    mask
-    
-    satlevel
-    
-    sepmed
+     and cleaning procedures. The median filter is used to find large symmetric
+     regions of saturated pixels (i.e. saturated stars).
+
+    Arguments:
+    =========
+    data: The data array in which we look for saturated stars.
+
+    mask: Bad pixel mask (boolean array). This mask will be dilated using
+        dilate3 and then combined with the saturated star mask.
+
+    satlevel: Saturation level of the image (float). This value can be lowered
+        if the cores of bright (saturated) stars are not being masked.
+
+    sepmed: Use the separable median or not (boolean). The separable median is
+        not identical to the full median filter, but they are approximately
+        the same and the separable median filter is significantly faster.
     """
 
     # Find all of the saturated pixels
@@ -383,10 +369,11 @@ def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data,
 
     # Dilate the saturated star mask to remove edge effects in the mask
     dilsatpixels = dilate5(satpixels, 2)
-
+    del satpixels
     # Combine the saturated pixels with the given input mask
     # Note, we work on the mask pixels in place
     mask[:, :] = np.logical_or(dilsatpixels, grow_mask)[:, :]
+    del grow_mask
 
 
 @cython.boundscheck(False)
@@ -395,8 +382,26 @@ def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data,
 cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                          bool[:, ::1] mask, int nx, int ny,
                          float backgroundlevel):
-    """ Clean the bad pixels in cleanarr using a masked mean filter.
-    
+    """ clean_meanmask(cleanarr, crmask, mask, nx, ny, backgroundlevel)
+    Clean the bad pixels in cleanarr using a 5x5 masked mean filter.
+
+    Arguments:
+    ==========
+    cleanarr: The array to be cleaned (float array).
+
+    crmask: Cosmic ray mask (boolean array). Pixels with a value of True in
+        this mask will be cleaned.
+
+    mask: Bad pixel mask (boolean array)
+
+    nx: size of cleanarr in the x-direction (int). Note cleanarr has dimensions
+        ny x nx
+
+    ny: size of cleanarr in the y-direction (int). Note cleanarr has dimensions
+        ny x nx
+
+    backgroundlevel: Average value of the background (float). This value will
+        be used if there are no good pixels in a 5x5 region.
     """
     # Go through all of the pixels, ignore the borders
     cdef int i, j, k, l, numpix
@@ -413,7 +418,7 @@ cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                     s = 0.0
 
                     # sum the 25 pixels around the pixel
-                    #ignoring any pixels that are masked
+                    # ignoring any pixels that are masked
                     for l in range(-2, 3):
                         for k in range(-2, 3):
                             badpix = crmask[j + l, i + k]
@@ -423,7 +428,7 @@ cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                                 numpix = numpix + 1
 
                     # if the pixels count is 0
-                    #then put in the background of the image
+                    # then put in the background of the image
                     if numpix == 0:
                         s = backgroundlevel
                     else:
@@ -438,9 +443,27 @@ cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
 @cython.cdivision(True)
 cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                         bool[:, ::1] mask, int nx, int ny,
-                        float backgroundlevel) nogil:
-    """ Clean the bad pixels in cleanarr using a masked median filter.
-    
+                        float backgroundlevel):
+    """ clean_medmask(cleanarr, crmask, mask, nx, ny, backgroundlevel)
+    Clean the bad pixels in cleanarr using a 5x5 masked median filter.
+
+    Arguments:
+    ==========
+    cleanarr: The array to be cleaned (float array).
+
+    crmask: Cosmic ray mask (boolean array). Pixels with a value of True in
+        this mask will be cleaned.
+
+    mask: Bad pixel mask (boolean array)
+
+    nx: size of cleanarr in the x-direction (int). Note cleanarr has dimensions
+        ny x nx
+
+    ny: size of cleanarr in the y-direction (int). Note cleanarr has dimensions
+        ny x nx
+
+    backgroundlevel: Average value of the background (float). This value will
+        be used if there are no good pixels in a 5x5 region.
     """
     # Go through all of the pixels, ignore the borders
     cdef int k, l, i, j, numpix
@@ -481,11 +504,27 @@ cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
 cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                           bool[:, ::1] mask, int nx, int ny,
                           float backgroundlevel):
-    """ Clean the bad pixels in cleanarr using inverse distance weighted
-    interpolation.
-    
-    
-    
+    """clean_idwinterp(cleanarr, crmask, mask, nx, ny, backgroundlevel)
+    Clean the bad pixels in cleanarr using a 5x5 using inverse distance
+    weighted interpolation.
+
+    Arguments:
+    ==========
+    cleanarr: The array to be cleaned (float array).
+
+    crmask: Cosmic ray mask (boolean array). Pixels with a value of True in
+        this mask will be cleaned.
+
+    mask: Bad pixel mask (boolean array)
+
+    nx: size of cleanarr in the x-direction (int). Note cleanarr has dimensions
+        ny x nx
+
+    ny: size of cleanarr in the y-direction (int). Note cleanarr has dimensions
+        ny x nx
+
+    backgroundlevel: Average value of the background (float). This value will
+        be used if there are no good pixels in a 5x5 region.
     """
 
     # Go through all of the pixels, ignore the borders
@@ -493,9 +532,9 @@ cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
     cdef float f11, f12, f21, f22 = backgroundlevel
     cdef int x1, x2, y1, y2
     weightsarr = np.array([[0.35355339, 0.4472136, 0.5, 0.4472136, 0.35355339],
-                          [0.4472136,  0.70710678, 1., 0.70710678, 0.4472136],
-                          [0.5,         1.,         0., 1.,         0.5],
-                          [0.4472136,   0.70710678, 1., 0.70710678, 0.4472136],
+                          [0.4472136, 0.70710678, 1., 0.70710678, 0.4472136],
+                          [0.5, 1., 0., 1., 0.5],
+                          [0.4472136, 0.70710678, 1., 0.70710678, 0.4472136],
                           [0.35355339, 0.4472136, 0.5, 0.4472136, 0.35355339]],
                           dtype=np.float32)
     cdef float[:, ::1] weights = weightsarr
@@ -525,16 +564,24 @@ cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
 
 
 def gausskernel(float psffwhm, int kernsize):
-    """ Calculate a gaussian kernel.
-    # Assume size is odd and is the side length of the Kernel
+    """ gausskernel(psffwhm, kernsize) -> array
+    Calculate a Gaussian psf kernel.
+
+    Arguments:
+    ==========
+    psffwhm (float): Full Width Half Maximum of the PSF to use to generate
+        the kernel.
+
+    kernsize (int): Size of the kernel to calculate. Returned kernel will
+        have size kernsize x kernsize. kernsize should be odd.
     """
     kernel = np.zeros((kernsize, kernsize), dtype=np.float32)
     # Make a grid of x and y values
     x = np.tile(np.arange(kernsize) - kernsize / 2, (kernsize, 1))
     y = x.transpose().copy()
-    #Calculate the offset, r
+    # Calculate the offset, r
     r2 = x * x + y * y
-    #Calculate the kernel
+    # Calculate the kernel
     sigma2 = psffwhm * psffwhm / 2.35482 / 2.35482
     kernel[:, :] = np.exp(-0.5 * r2 / sigma2)[:, :]
     # Normalize the kernel
@@ -542,16 +589,26 @@ def gausskernel(float psffwhm, int kernsize):
     return kernel
 
 cdef moffatkernel(float psffwhm, float beta, int kernsize):
-    """ Calculate a moffat kernel.
-    # Assume size is odd and is the side length of the Kernel
+    """ gausskernel(psffwhm, beta, kernsize) -> array
+    Calculate a Moffat psf kernel.
+
+    Arguments:
+    ==========
+    psffwhm (float): Full Width Half Maximum of the PSF to use to generate
+        the kernel.
+
+    beta (float): Moffat beta parameter
+
+    kernsize (int): Size of the kernel to calculate. Returned kernel will
+        have size kernsize x kernsize. kernsize should be odd.
     """
     kernel = np.zeros((kernsize, kernsize), dtype=np.float32)
     # Make a grid of x and y values
     x = np.tile(np.arange(kernsize) - kernsize / 2, (kernsize, 1))
     y = x.transpose().copy()
-    #Calculate the offset r
+    # Calculate the offset r
     r = (x * x + y * y) ** 0.5
-    #Calculate the kernel
+    # Calculate the kernel
     hwhm = psffwhm / 2.0
     alpha = hwhm * (2.0 ** (1.0 / beta) - 1.0) ** 0.5
     kernel[:, :] = ((1.0 + (r / alpha) ** 2.0) ** (-1.0 * beta))[:, :]

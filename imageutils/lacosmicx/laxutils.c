@@ -14,17 +14,19 @@
  *
  * Parallelization has been achieved using OpenMP. Using a compiler that does
  * not support OpenMP, e.g. clang currently, the code should still compile and
- * run serially without issue. I have tried to be explict as possible about
+ * run serially without issue. I have tried to be explicit as possible about
  * specifying which variables are private and which should be shared, although
  * we never actually have any shared variables. We use firstprivate instead.
  * This does mean that it is important that we never have two threads write to
  * the same memory position at the same time.
+ *
+ * All calculations are done with 32 bit floats to keep the memory footprint
+ * small.
  */
 #include<stdlib.h>
 #include<math.h>
 #include<Python.h>
 #include "laxutils.h"
-
 #define ELEM_SWAP(a,b) { float t=(a);(a)=(b);(b)=t; }
 
 float
@@ -33,15 +35,14 @@ PyMedian(float* a, int n)
     /* Get the median of an array "a" with length "n"
      * using the Quickselect algorithm. Returns a float.
      * This Quickselect routine is based on the algorithm described in
-     * "Numerical recipes in C", Second Edition,
-     * Cambridge University Press, 1992, Section 8.5, ISBN 0-521-43108-5
+     * "Numerical recipes in C", Second Edition, Cambridge University Press,
+     * 1992, Section 8.5, ISBN 0-521-43108-5
      * This code by Nicolas Devillard - 1998. Public domain.
      */
 
-    PyDoc_STRVAR(PyMedian__doc__,
-        "PyMedian(a, n) -> float\n\n\
-        Get the median of array a of length n using \
-        the Quickselect algorithm.");
+    PyDoc_STRVAR(PyMedian__doc__, "PyMedian(a, n) -> float\n\n"
+        "Get the median of array a of length n using the Quickselect "
+        "algorithm.");
 
     /* Make a copy of the array so that we don't alter the input array */
     float* arr = (float *) malloc(n * sizeof(float));
@@ -140,9 +141,8 @@ PyMedian(float* a, int n)
 float
 PyOptMed3(float* p)
 {
-    PyDoc_STRVAR(PyOptMed3__doc__,
-        "PyOptMed3(a) -> float\n\n\
-        Get the median of array a of length 3 using a search tree.");
+    PyDoc_STRVAR(PyOptMed3__doc__, "PyOptMed3(a) -> float\n\n"
+        "Get the median of array a of length 3 using a search tree.");
 
     PIX_SORT(p[0], p[1]);
     PIX_SORT(p[1], p[2]);
@@ -163,9 +163,8 @@ PyOptMed3(float* p)
 float
 PyOptMed5(float* p)
 {
-    PyDoc_STRVAR(PyOptMed5__doc__,
-        "PyOptMed5(a) -> float\n\n\
-        Get the median of array a of length 5 using a search tree.");
+    PyDoc_STRVAR(PyOptMed5__doc__, "PyOptMed5(a) -> float\n\n"
+        "Get the median of array a of length 5 using a search tree.");
 
     PIX_SORT(p[0], p[1]);
     PIX_SORT(p[3], p[4]);
@@ -190,9 +189,8 @@ PyOptMed5(float* p)
 float
 PyOptMed7(float* p)
 {
-    PyDoc_STRVAR(PyOptMed7__doc__,
-        "PyOptMed7(a) -> float\n\n\
-        Get the median of array a of length 7 using a search tree.");
+    PyDoc_STRVAR(PyOptMed7__doc__, "PyOptMed7(a) -> float\n\n"
+        "Get the median of array a of length 7 using a search tree.");
 
     PIX_SORT(p[0], p[5]);
     PIX_SORT(p[0], p[3]);
@@ -228,9 +226,8 @@ PyOptMed7(float* p)
 float
 PyOptMed9(float* p)
 {
-    PyDoc_STRVAR(PyOptMed9__doc__,
-        "PyOptMed9(a) -> float\n\n\
-        Get the median of array a of length 9 using a search tree.");
+    PyDoc_STRVAR(PyOptMed9__doc__, "PyOptMed9(a) -> float\n\n"
+        "Get the median of array a of length 9 using a search tree.");
 
     PIX_SORT(p[1], p[2]);
     PIX_SORT(p[4], p[5]);
@@ -267,9 +264,8 @@ PyOptMed9(float* p)
 float
 PyOptMed25(float* p)
 {
-    PyDoc_STRVAR(PyOptMed25__doc__,
-        "PyOptMed25(a) -> float\n\n\
-        Get the median of array a of length 25 using a search tree.");
+    PyDoc_STRVAR(PyOptMed25__doc__, "PyOptMed25(a) -> float\n\n"
+        "Get the median of array a of length 25 using a search tree.");
 
     PIX_SORT(p[0], p[1]);
     PIX_SORT(p[3], p[4]);
@@ -386,21 +382,25 @@ PyOptMed25(float* p)
  */
 
 /* Calculate the 3x3 median filter of an array data that has dimensions
- * nx x ny.The median filter is not calculated for a 1 pixel border
- * around the image. These pixel values are copied from the input data.
- * The data should be striped along the x direction, such that pixel i,j
- * in the 2D image should have memory location data[i + nx *j].
+ * nx x ny. The results are saved in the output array. The output array should
+ * already be allocated as we work on it in place. The median filter is not
+ * calculated for a 1 pixel border around the image. These pixel values are
+ * copied from the input data. The data should be striped along the x
+ * direction, such that pixel i,j in the 2D image should have memory location
+ * data[i + nx *j].
  */
 void
 PyMedFilt3(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyMedFilt3__doc__,
-        "PyMedFilt3(data, nx, ny) -> float*\n\n\
-        Calculate the 3x3 median filter on an array data with dimensions \
-        nx x ny. The median filter is not calculated for a 1 pixel border \
-        around the image. These pixel values are copied from the input data. \
-        Note that the data array needs to be striped in the x direction such \
-        that pixel i,j has memory location data[i + nx * j]");
+        "PyMedFilt3(data, output, nx, ny) -> void\n\n"
+            "Calculate the 3x3 median filter on an array data with dimensions "
+            "nx x ny. The results are saved in the output array. The output "
+            "array should already be allocated as we work on it in place. The "
+            "median filter is not calculated for a 1 pixel border around the "
+            "image. These pixel values are copied from the input data. Note "
+            "that the data array needs to be striped in the x direction such "
+            "that pixel i,j has memory location data[i + nx * j]");
 
     /*Total size of the array */
     int nxny = nx * ny;
@@ -464,21 +464,25 @@ PyMedFilt3(float* data, float* output, int nx, int ny)
 }
 
 /* Calculate the 5x5 median filter of an array data that has dimensions
- * nx x ny.The median filter is not calculated for a 2 pixel border
- * around the image. These pixel values are copied from the input data.
- * The data should be striped along the x direction, such that pixel i,j
- * in the 2D image should have memory location data[i + nx *j].
+ * nx x ny. The results are saved in the output array. The output array should
+ * already be allocated as we work on it in place. The median filter is not
+ * calculated for a 2 pixel border around the image. These pixel values are
+ * copied from the input data. The data should be striped along the
+ * x direction, such that pixel i,j in the 2D image should have memory
+ * location data[i + nx *j].
  */
 void
 PyMedFilt5(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyMedFilt5__doc__,
-        "PyMedFilt5(data, nx, ny) -> float*\n\n\
-        Calculate the 5x5 median filter on an array data with dimensions \
-        nx x ny. The median filter is not calculated for a 2 pixel border \
-        around the image. These pixel values are copied from the input data. \
-        Note that the data array needs to be striped in the x direction such \
-        that pixel i,j has memory location data[i + nx * j]");
+        "PyMedFilt5(data, output, nx, ny) -> void\n\n"
+            "Calculate the 5x5 median filter on an array data with dimensions "
+            "nx x ny. The results are saved in the output array. The output "
+            "array should already be allocated as we work on it in place. The "
+            "median filter is not calculated for a 2 pixel border around the "
+            "image. These pixel values are copied from the input data. Note "
+            "that the data array needs to be striped in the x direction such "
+            "that pixel i,j has memory location data[i + nx * j]");
 
     /*Total size of the array */
     int nxny = nx * ny;
@@ -547,21 +551,25 @@ PyMedFilt5(float* data, float* output, int nx, int ny)
 }
 
 /* Calculate the 7x7 median filter of an array data that has dimensions
- * nx x ny.The median filter is not calculated for a 3 pixel border
- * around the image. These pixel values are copied from the input data.
- * The data should be striped along the x direction, such that pixel i,j
- * in the 2D image should have memory location data[i + nx *j].
+ * nx x ny. The results are saved in the output array. The output array should
+ * already be allocated as we work on it in place. The median filter is not
+ * calculated for a 3 pixel border around the image. These pixel values are
+ * copied from the input data. The data should be striped along the
+ * x direction, such that pixel i,j in the 2D image should have memory
+ * location data[i + nx *j].
  */
 void
 PyMedFilt7(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyMedFilt7__doc__,
-        "PyMedFilt7(data, nx, ny) -> float*\n\n\
-        Calculate the 7x7 median filter on an array data with dimensions \
-        nx x ny. The median filter is not calculated for a 3 pixel border \
-        around the image. These pixel values are copied from the input data. \
-        Note that the data array needs to be striped in the x direction such \
-        that pixel i,j has memory location data[i + nx * j]");
+        "PyMedFilt7(data, output, nx, ny) -> void\n\n"
+            "Calculate the 7x7 median filter on an array data with dimensions "
+            "nx x ny. The results are saved in the output array. The output "
+            "array should already be allocated as we work on it in place. The "
+            "median filter is not calculated for a 3 pixel border around the "
+            "image. These pixel values are copied from the input data. Note "
+            "that the data array needs to be striped in the x direction such "
+            "that pixel i,j has memory location data[i + nx * j]");
 
     /*Total size of the array */
     int nxny = nx * ny;
@@ -634,23 +642,27 @@ PyMedFilt7(float* data, float* output, int nx, int ny)
 }
 
 /* Calculate the 3x3 separable median filter of an array data that has
- * dimensions nx x ny. The median filter is not calculated for a 1 pixel border
- * around the image. These pixel values are copied from the input data.
- * The data should be striped along the x direction, such that pixel i,j
- * in the 2D image should have memory location data[i + nx *j]. Note that the
- * rows are median filtered first, followed by the columns.
+ * dimensions nx x ny. The results are saved in the output array. The output
+ * array should already be allocated as we work on it in place. The median
+ * filter is not calculated for a 1 pixel border around the image. These pixel
+ * values are copied from the input data. The data should be striped along
+ * the x direction, such that pixel i,j in the 2D image should have memory
+ * location data[i + nx *j]. Note that the rows are median filtered first,
+ * followed by the columns.
  */
 void
 PySepMedFilt3(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySepMedFilt3__doc__,
-        "PySepMedFilt3(data, nx, ny) -> float*\n\n\
-        Calculate the 3x3 separable median filter on an array data with \
-        dimensions nx x ny. The median filter is not calculated for a 1 pixel \
-        border around the image. These pixel values are copied from the input \
-        data. The data array should be striped in the x direction such that \
-        pixel i,j has memory location data[i + nx * j]. Note that the rows \
-        are median filtered first, followed by the columns.");
+        "PySepMedFilt3(data, output, nx, ny) -> void\n\n"
+            "Calculate the 3x3 separable median filter on an array data with"
+            "dimensions nx x ny. The results are saved in the output array "
+            "which should already be allocated as we work on it in place. The "
+            "median filter is not calculated for a 1 pixel border which is "
+            "copied from the input data. The data array should be striped in "
+            "the x direction such that pixel i,j has memory location "
+            "data[i + nx * j]. Note that the rows are median filtered first, "
+            "followed by the columns.");
 
     /* Total number of pixels */
     int nxny = nx * ny;
@@ -744,23 +756,27 @@ PySepMedFilt3(float* data, float* output, int nx, int ny)
 }
 
 /* Calculate the 5x5 separable median filter of an array data that has
- * dimensions nx x ny. The median filter is not calculated for a 2 pixel border
- * around the image. These pixel values are copied from the input data.
- * The data should be striped along the x direction, such that pixel i,j
- * in the 2D image should have memory location data[i + nx *j]. Note that the
- * rows are median filtered first, followed by the columns.
+ * dimensions nx x ny. The results are saved in the output array. The output
+ * array should already be allocated as we work on it in place.The median
+ * filter is not calculated for a 2 pixel border around the image. These pixel
+ * values are copied from the input data. The data should be striped along the
+ * x direction, such that pixel i,j in the 2D image should have memory location
+ * data[i + nx *j]. Note that the rows are median filtered first, followed by
+ * the columns.
  */
 void
 PySepMedFilt5(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySepMedFilt5__doc__,
-        "PySepMedFilt5(data, nx, ny) -> float*\n\n\
-        Calculate the 5x5 separable median filter on an array data with \
-        dimensions nx x ny. The median filter is not calculated for a 2 pixel \
-        border around the image. These pixel values are copied from the input \
-        data. The data array should be striped in the x direction such that \
-        pixel i,j has memory location data[i + nx * j]. Note that the rows \
-        are median filtered first, followed by the columns.");
+        "PySepMedFilt5(data, output, nx, ny) -> void\n\n"
+            "Calculate the 5x5 separable median filter on an array data with "
+            "dimensions nx x ny. The results are saved in the output array "
+            "which should already be allocated as we work on it in place. The "
+            "median filter is not calculated for a 2 pixel border which is "
+            "copied from the input data. The data array should be striped in "
+            "the x direction such that pixel i,j has memory location "
+            "data[i + nx * j]. Note that the rows are median filtered first, "
+            "followed by the columns.");
 
     /* Total number of pixels */
     int nxny = nx * ny;
@@ -865,23 +881,27 @@ PySepMedFilt5(float* data, float* output, int nx, int ny)
 }
 
 /* Calculate the 7x7 separable median filter of an array data that has
- * dimensions nx x ny. The median filter is not calculated for a 3 pixel border
- * around the image. These pixel values are copied from the input data.
- * The data should be striped along the x direction, such that pixel i,j
- * in the 2D image should have memory location data[i + nx *j]. Note that the
- * rows are median filtered first, followed by the columns.
+ * dimensions nx x ny. The results are saved in the output array. The output
+ * array should already be allocated as we work on it in place. The median
+ * filter is not calculated for a 3 pixel border around the image. These pixel
+ * values are copied from the input data. The data should be striped along the
+ * x direction, such that pixel i,j in the 2D image should have memory location
+ * data[i + nx *j]. Note that the rows are median filtered first, followed by
+ * the columns.
  */
 void
 PySepMedFilt7(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySepMedFilt7__doc__,
-        "PySepMedFilt7(data, nx, ny) -> float*\n\n\
-        Calculate the 7x7 separable median filter on an array data with \
-        dimensions nx x ny. The median filter is not calculated for a 3 pixel \
-        border around the image. These pixel values are copied from the input \
-        data. The data array should be striped in the x direction such that \
-        pixel i,j has memory location data[i + nx * j]. Note that the rows \
-        are median filtered first, followed by the columns.");
+        "PySepMedFilt7(data, output, nx, ny) -> void\n\n"
+            "Calculate the 7x7 separable median filter on an array data with "
+            "dimensions nx x ny. The results are saved in the output array "
+            "which should already be allocated as we work on it in place. The "
+            "median filter is not calculated for a 3 pixel border which is "
+            "copied from the input data. The data array should be striped in "
+            "the x direction such that pixel i,j has memory location "
+            "data[i + nx * j]. Note that the rows are median filtered first, "
+            "followed by the columns.");
 
     /* Total number of pixels */
     int nxny = nx * ny;
@@ -997,23 +1017,27 @@ PySepMedFilt7(float* data, float* output, int nx, int ny)
 }
 
 /* Calculate the 9x9 separable median filter of an array data that has
- * dimensions nx x ny. The median filter is not calculated for a 4 pixel border
- * around the image. These pixel values are copied from the input data.
- * The data should be striped along the x direction, such that pixel i,j
- * in the 2D image should have memory location data[i + nx *j]. Note that the
- * rows are median filtered first, followed by the columns.
+ * dimensions nx x ny. The results are saved in the output array. The output
+ * array should already be allocated as we work on it in place. The median
+ * filter is not calculated for a 4 pixel border around the image. These pixel
+ * values are copied from the input data. The data should be striped along the
+ * x direction, such that pixel i,j in the 2D image should have memory location
+ * data[i + nx *j]. Note that the rows are median filtered first, followed by
+ * the columns.
  */
 void
 PySepMedFilt9(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySepMedFilt9__doc__,
-        "PySepMedFilt9(data, nx, ny) -> float*\n\n\
-        Calculate the 9x9 separable median filter on an array data with \
-        dimensions nx x ny. The median filter is not calculated for a 4 pixel \
-        border around the image. These pixel values are copied from the input \
-        data. The data array should be striped in the x direction such that \
-        pixel i,j has memory location data[i + nx * j]. Note that the rows \
-        are median filtered first, followed by the columns.");
+        "PySepMedFilt9(data, output, nx, ny) -> void\n\n"
+            "Calculate the 9x9 separable median filter on an array data with "
+            "dimensions nx x ny. The results are saved in the output array "
+            "which should already be allocated as we work on it in place. The "
+            "median filter is not calculated for a 4 pixel border which is "
+            "copied from the input data. The data array should be striped in "
+            "the x direction such that pixel i,j has memory location "
+            "data[i + nx * j]. Note that the rows are median filtered first, "
+            "followed by the columns.");
 
     /* Total number of pixels */
     int nxny = nx * ny;
@@ -1138,19 +1162,22 @@ PySepMedFilt9(float* data, float* output, int nx, int ny)
 }
 
 /* Subsample an array 2x2 given an input array data with size nx x ny. Each
- * pixel is replicated into 4 pixels; no averaging is performed. Data should
- * be striped in the x direction such that the memory location of pixel i,j is
- * data[nx *j + i].
+ * pixel is replicated into 4 pixels; no averaging is performed. The results
+ * are saved in the output array. The output array should already be allocated
+ * as we work on it in place. Data should be striped in the x direction such
+ * that the memory location of pixel i,j is data[nx *j + i].
  */
 void
 PySubsample(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PySubsample__doc__,
-        "PySubample(data, nx, ny) -> float*\n\n\
-        Subsample an array 2x2 given an input array data with size nx x ny.\
-        Each pixel is replicated into 4 pixels; no averaging is performed. \
-        Data should be striped in the x direction such that the memory \
-        location of pixel i,j is data[nx *j + i].");
+        "PySubample(data, output, nx, ny) -> void\n\n"
+            "Subsample an array 2x2 given an input array data with size "
+            "nx x ny.The results are saved in the output array. The output "
+            "array should already be allocated as we work on it in place. Each"
+            " pixel is replicated into 4 pixels; no averaging is performed. "
+            "Data should be striped in the x direction such that the memory "
+            "location of pixel i,j is data[nx *j + i].");
 
     /* Precalculate the new length; minor optimization */
     int padnx = 2 * nx;
@@ -1178,20 +1205,23 @@ PySubsample(float* data, float* output, int nx, int ny)
 
 /* Rebin an array 2x2, with size (2 * nx) x (2 * ny). Rebin the array by block
  * averaging 4 pixels back into 1. This is effectively the opposite of
- * subsample (although subsample does not do an average). Data should be
- * striped in the x direction such that the memory location of pixel i,j is
- * data[nx *j + i].
+ * subsample (although subsample does not do an average). The results are saved
+ * in the output array. The output array should already be allocated as we work
+ * on it in place. Data should be striped in the x direction such that the
+ * memory location of pixel i,j is data[nx *j + i].
  */
 void
 PyRebin(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyRebin__doc__,
-        "PyRebin(data, nx, ny) -> float*\n\n\
-        Rebin an array 2x2, with size (2 * nx) x (2 * ny). Rebin the array by \
-        block averaging 4 pixels back into 1. This is effectively the \
-        opposite of subsample (although subsample does not do an average). \
-        Data should be striped in the x direction such that the memory \
-        location of pixel i,j is data[nx *j + i].");
+        "PyRebin(data, output, nx, ny) -> void\n    \n"
+            "Rebin an array 2x2, with size (2 * nx) x (2 * ny). Rebin the "
+            "array by block averaging 4 pixels back into 1. This is "
+            "effectively the opposite of subsample (although subsample does "
+            "not do an average). The results are saved in the output array. "
+            "The output array should already be allocated as we work on it in "
+            "place. Data should be striped in the x direction such that the "
+            "memory location of pixel i,j is data[nx *j + i].");
 
     /* Size of original array */
     int padnx = nx * 2;
@@ -1220,20 +1250,24 @@ PyRebin(float* data, float* output, int nx, int ny)
     return;
 }
 
-/* Convolve an image of size nx x ny with a kernel of size  kernx x kerny.
- * Data and kernel should both be striped in the x direction such that the
- * memory location of pixel i,j is data[nx *j + i].
+/* Convolve an image of size nx x ny with a kernel of size  kernx x kerny. The
+ * results are saved in the output array. The output array should already be
+ * allocated as we work on it in place. Data and kernel should both be striped
+ * in the x direction such that the memory location of pixel i,j is
+ * data[nx *j + i].
  */
 void
 PyConvolve(float* data, float* kernel, float* output, int nx, int ny,
            int kernx, int kerny)
 {
     PyDoc_STRVAR(PyConvolve__doc__,
-        "PyConvolve(data, kernel, nx, ny, kernx, kerny) -> float*\n\n\
-        Convolve an image of size nx x ny with a a kernel of size \
-        kernx x kerny. Data and kernel should both be striped along the x \
-        direction such that the memory location of pixel i,j is \
-        data[nx *j + i].");
+        "PyConvolve(data, kernel, output, nx, ny, kernx, kerny) -> void\n\n"
+            "Convolve an image of size nx x ny with a a kernel of size "
+            "kernx x kerny. The results are saved in the output array. The "
+            "output array should already be allocated as we work on it in "
+            "place. Data and kernel should both be striped along the x "
+            "direction such that the memory location of pixel i,j is "
+            "data[nx *j + i].");
 
     /* Get the width of the borders that we will pad with zeros */
     int bnx = (kernx - 1) / 2;
@@ -1319,6 +1353,8 @@ PyConvolve(float* data, float* kernel, float* output, int nx, int ny,
  *  0 -1  0
  * -1  4 -1
  *  0 -1  0
+ * The results are saved in the output array. The output array should
+ * already be allocated as we work on it in place.
  * This is a discrete version of the Laplacian operator.
  * Data should be striped in the x direction such that the memory location of
  * pixel i,j is data[nx *j + i].
@@ -1327,14 +1363,16 @@ void
 PyLaplaceConvolve(float* data, float* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyLaplaceConvolve__doc__,
-        "PyLaplaceConvolve(data, nx, ny) -> float*\n\n\
-        Convolve an image of size nx x ny the following kernel:\n\
-         0 -1  0\n\
-        -1  4 -1\n\
-         0 -1  0\n\
-        This is a discrete version of the Laplacian operator. Data should be \
-        striped in the x direction such that the memory location of pixel i,j \
-        is data[nx *j + i].");
+        "PyLaplaceConvolve(data, output, nx, ny) -> void\n\n"
+            "Convolve an image of size nx x ny the following kernel:\n"
+            " 0 -1  0\n"
+            "-1  4 -1\n"
+            " 0 -1  0\n"
+            "This is a discrete version of the Laplacian operator. The results"
+            " are saved in the output array. The output array should already "
+            "be allocated as we work on it in place.Data should be striped in "
+            "the x direction such that the memory location of pixel i,j is "
+            "data[nx *j + i].");
 
     /* Precompute the total number of pixels in the image */
     int nxny = nx * ny;
@@ -1414,7 +1452,9 @@ PyLaplaceConvolve(float* data, float* output, int nx, int ny)
     return;
 }
 
-/* Perform a boolean dilation on an array of size nx x ny.
+/* Perform a boolean dilation on an array of size nx x ny. The results are
+ * saved in the output array. The output array should already be allocated as
+ * we work on it in place.
  * Dilation is the boolean equivalent of a convolution but using logical ors
  * instead of a sum.
  * We apply the following kernel:
@@ -1430,17 +1470,15 @@ void
 PyDilate3(bool* data, bool* output, int nx, int ny)
 {
     PyDoc_STRVAR(PyDilate3__doc__,
-        "PyDilate3(data, nx, ny) -> bool*\n\n\
-        Perform a boolean dilation on an array of size nx x ny. \
-        Dilation is the boolean equivalent of a convolution but using logical \
-        or instead of a sum. We apply the following kernel:\n\
-        1 1 1\n\
-        1 1 1\n\
-        1 1 1\n\
-        Dilation is not computed for a 1 pixel border. These pixels \
-        are copied from the input data. Data should be \
-        striped along the x direction such that the memory location of pixel \
-        i,j is data[i + nx * j].");
+        "PyDilate3(data, output, nx, ny) -> void\n\n"
+            "Perform a boolean dilation on an array of size nx x ny. The "
+            "results are saved in the output array which should already be "
+            "allocated as we work on it in place. "
+            "Dilation is the boolean equivalent of a convolution but using "
+            "logical or instead of a sum. We apply a 3x3 kernel of all ones. "
+            "Dilation is not computed for a 1 pixel border which is copied "
+            "from the input data. Data should be striped along the x-axis "
+            "such that the location of pixel i,j is data[i + nx * j].");
 
     /* Precompute the total number of pixels; minor optimization */
     int nxny = nx * ny;
@@ -1498,7 +1536,9 @@ PyDilate3(bool* data, bool* output, int nx, int ny)
     return;
 }
 
-/* Do niter iterations of boolean dilation on an array of size nx x ny.
+/* Do niter iterations of boolean dilation on an array of size nx x ny. The
+ * results are saved in the output array. The output array should already be
+ * allocated as we work on it in place.
  * Dilation is the boolean equivalent of a convolution but using logical ors
  * instead of a sum.
  * We apply the following kernel:
@@ -1515,17 +1555,19 @@ void
 PyDilate5(bool* data, bool* output, int niter, int nx, int ny)
 {
     PyDoc_STRVAR(PyDilate5__doc__,
-        "PyDilate5(data, nx, ny) -> bool*\n\n\
-        Do niter iterations of boolean dilation on an array of size nx x ny.\
-        Dilation is the boolean equivalent of a convolution but using logical \
-        ors instead of a sum. We apply the following kernel:\n\
-        0 1 1 1 0\n\
-        1 1 1 1 1\n\
-        1 1 1 1 1\n\
-        1 1 1 1 1\n\
-        0 1 1 1 0\n\
-        Data should be striped along the x direction \
-        such that the memory location of pixel i,j is data[i + nx * j].");
+        "PyDilate5(data, output, nx, ny) -> void\n\n"
+            "Do niter iterations of boolean dilation on an array of size "
+            "nx x ny. The results are saved in the output array. The output "
+            "array should already be allocated as we work on it in place. "
+            "Dilation is the boolean equivalent of a convolution but using "
+            "logical ors instead of a sum. We apply the following kernel:\n"
+            "0 1 1 1 0\n"
+            "1 1 1 1 1\n"
+            "1 1 1 1 1\n"
+            "1 1 1 1 1\n"
+            "0 1 1 1 0\n"
+            "Data should be striped along the x direction such that the "
+            "location of pixel i,j is data[i + nx * j].");
 
     /* Pad the array with a border of zeros */
     int padnx = nx + 4;

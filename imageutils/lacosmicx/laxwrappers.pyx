@@ -1,4 +1,3 @@
-# cython: profile=True
 """
 laxwrappers.pyx
 
@@ -7,6 +6,7 @@ October 2014
 
 This module entirely serves as a wrapper layer between laxutils.c and Python.
 """
+# cython: profile=True
 import numpy as np
 cimport numpy as np
 cimport cython
@@ -45,7 +45,8 @@ cdef extern from "laxutils.h":
 @cython.wraparound(False)
 @cython.cdivision(True)
 def median(np.ndarray[np.float32_t, mode='c', cast=True] a, int n):
-    """Find the median of the first n elements of an array a.
+    """median(a, n) -> float
+    Find the median of the first n elements of an array a. Returns a float.
 
     Wrapper for PyMedian in laxutils.
     """
@@ -61,7 +62,8 @@ def median(np.ndarray[np.float32_t, mode='c', cast=True] a, int n):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def optmed3(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """Optimized method to find the median value of an array "a" of length 3.
+    """optmed3(a) -> float
+    Optimized method to find the median value of an array "a" of length 3.
 
     Wrapper for PyOtMed3 in laxutils.
     """
@@ -77,7 +79,8 @@ def optmed3(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def optmed5(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """Optimized method to find the median value of an array "a" of length 5.
+    """optmed5(a) -> float
+    Optimized method to find the median value of an array "a" of length 5.
 
     Wrapper for PyOtMed5 in laxutils.
     """
@@ -93,7 +96,8 @@ def optmed5(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def optmed7(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """Optimized method to find the median value of an array "a" of length 7.
+    """optmed7(a) -> float
+    Optimized method to find the median value of an array "a" of length 7.
 
     Wrapper for PyOtMed7 in laxutils.
     """
@@ -109,7 +113,8 @@ def optmed7(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def optmed9(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """Optimized method to find the median value of an array "a" of length 9.
+    """optmed9(a) -> float
+    Optimized method to find the median value of an array "a" of length 9.
 
     Wrapper for PyOtMed9 in laxutils.
     """
@@ -125,9 +130,10 @@ def optmed9(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def optmed25(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """Optimized method to find the median value of an array "a" of length 25.
+    """optmed25(a) -> float
+    Optimized method to find the median value of an array "a" of length 25.
 
-    Wrapper for PyOtMed3 in laxutils.
+    Wrapper for PyOtMed25 in laxutils.
     """
     cdef float * aptr25 = < float * > np.PyArray_DATA(a)
     cdef float med25 = 0.0
@@ -141,7 +147,8 @@ def optmed25(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def medfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d3):
-    """Calculate the 3x3 median filter of an array.
+    """medfilt3(data) -> array
+    Calculate the 3x3 median filter of an array.
 
     The median filter is not calculated for a 1 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
@@ -166,7 +173,8 @@ def medfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d3):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def medfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d5):
-    """Calculate the 5x5 median filter of an array.
+    """medfilt5(data) -> array
+    Calculate the 5x5 median filter of an array.
 
     The median filter is not calculated for a 2 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
@@ -190,7 +198,8 @@ def medfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d5):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def medfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d7):
-    """ Calculate the 7x7 median filter of an array.
+    """medfilt7(data) -> array
+    Calculate the 7x7 median filter of an array.
 
     The median filter is not calculated for a 3 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
@@ -215,7 +224,8 @@ def medfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d7):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def sepmedfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep3):
-    """ Calculate the 3x3 separable median filter of an array.
+    """sepmedfilt3(data) -> array
+    Calculate the 3x3 separable median filter of an array.
 
     The median filter is not calculated for a 1 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
@@ -240,7 +250,8 @@ def sepmedfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep3):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def sepmedfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep5):
-    """Calculate the 5x5 separable median filter of an array.
+    """sepmedfilt5(data) -> array
+    Calculate the 5x5 separable median filter of an array.
 
     The median filter is not calculated for a 2 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
@@ -266,7 +277,8 @@ def sepmedfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep5):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def sepmedfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep7):
-    """Calculate the 7x7 separable median filter of an array.
+    """sepmedfilt7(data) -> array
+    Calculate the 7x7 separable median filter of an array.
 
     The median filter is not calculated for a 3 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
@@ -291,7 +303,8 @@ def sepmedfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep7):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def sepmedfilt9(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep9):
-    """ Calculate the 9x9 separable median filter of an array.
+    """sepmedfilt9(data) -> array
+    Calculate the 9x9 separable median filter of an array.
 
     The median filter is not calculated for a 4 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
@@ -316,10 +329,12 @@ def sepmedfilt9(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep9):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def subsample(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsub):
-    """
-    Subsample an array 2x2 given an input array dsub. Each pixel is
-    replicated into 4 pixels; no averaging is performed. The array needs to be
-    C-contiguous order. Wrapper for PySubsample in laxutils.
+    """subsample(dsub) -> array
+    Subsample an array 2x2 given an input array dsub.
+
+    Each pixel is replicated into 4 pixels; no averaging is performed.
+    The array needs to be C-contiguous order. Wrapper for PySubsample in
+    laxutils.
     """
     cdef int nx = dsub.shape[1]
     cdef int ny = dsub.shape[0]
@@ -342,7 +357,8 @@ def subsample(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsub):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def rebin(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] drebin):
-    """ Rebin an array 2x2.
+    """rebin(data) -> array
+    Rebin an array 2x2.
 
     Rebin the array by block averaging 4 pixels back into
     1. This is effectively the opposite of subsample (although subsample does
@@ -369,7 +385,8 @@ def rebin(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] drebin):
 @cython.cdivision(True)
 def convolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dconv,
              np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] kernel):
-    """Convolve an array with a kernel.
+    """convolve(data, kernel) -> array
+    Convolve an array with a kernel.
 
     Both the data and kernel arrays need to be C-contiguous order. Wrapper for
     PyConvolve in laxutils.
@@ -398,7 +415,8 @@ def convolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dconv,
 @cython.wraparound(False)
 @cython.cdivision(True)
 def laplaceconvolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dl):
-    """ Convolve an array with the Laplacian kernel.
+    """laplaceconvolve(data) -> array
+    Convolve an array with the Laplacian kernel.
 
     The kernel is as follows:
      0 -1  0
@@ -427,7 +445,8 @@ def laplaceconvolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dl):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def dilate3(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] dgrow):
-    """ Perform a boolean dilation on an array.
+    """dilate3(data) -> array
+    Perform a boolean dilation on an array.
 
     Dilation is the boolean equivalent of a convolution but using logical ors
     instead of a sum.
@@ -459,7 +478,8 @@ def dilate3(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] dgrow):
 @cython.cdivision(True)
 def dilate5(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] ddilate,
            int niter):
-    """Do niter iterations of boolean dilation on an array.
+    """dilate5(data) -> array
+    Do niter iterations of boolean dilation on an array.
 
     Dilation is the boolean equivalent of a convolution but using logical ors
     instead of a sum.
