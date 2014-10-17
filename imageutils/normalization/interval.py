@@ -11,7 +11,7 @@ from astropy.extern import six
 
 from .transform import BaseTransform
 
-__all__ = ['ManualInterval', 'MinMaxInterval', 'PercentileInterval', 'AsymmetricPercentileInterval']
+__all__ = ['BaseInterval', 'ManualInterval', 'MinMaxInterval', 'PercentileInterval', 'AsymmetricPercentileInterval']
 
 
 class BaseInterval(BaseTransform):
