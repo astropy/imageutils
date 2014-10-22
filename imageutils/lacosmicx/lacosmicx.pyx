@@ -563,6 +563,9 @@ cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                         cleanarr[j, i] = val / wsum
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
 def gausskernel(float psffwhm, int kernsize):
     """ gausskernel(psffwhm, kernsize) -> array
     Calculate a Gaussian psf kernel.
@@ -588,6 +591,10 @@ def gausskernel(float psffwhm, int kernsize):
     kernel /= kernel.sum()
     return kernel
 
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
 cdef moffatkernel(float psffwhm, float beta, int kernsize):
     """ gausskernel(psffwhm, beta, kernsize) -> array
     Calculate a Moffat psf kernel.
@@ -610,7 +617,7 @@ cdef moffatkernel(float psffwhm, float beta, int kernsize):
     r = np.sqrt(x * x + y * y)
     # Calculate the kernel
     hwhm = psffwhm / 2.0
-    alpha = hwhm * np.sqrt(np.power(2.0, (1.0 / beta)) - 1.0)
+    alpha = hwhm / np.sqrt(np.power(2.0, (1.0 / beta)) - 1.0)
     kernel[:, :] = (np.power(1.0 + (r * r / alpha / alpha), -1.0 * beta))[:, :]
     # Normalize the kernel.
     kernel /= kernel.sum()
