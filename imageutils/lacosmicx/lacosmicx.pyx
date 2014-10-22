@@ -607,11 +607,11 @@ cdef moffatkernel(float psffwhm, float beta, int kernsize):
     x = np.tile(np.arange(kernsize) - kernsize / 2, (kernsize, 1))
     y = x.transpose().copy()
     # Calculate the offset r
-    r = (x * x + y * y) ** 0.5
+    r = np.sqrt(x * x + y * y)
     # Calculate the kernel
     hwhm = psffwhm / 2.0
-    alpha = hwhm * (2.0 ** (1.0 / beta) - 1.0) ** 0.5
-    kernel[:, :] = ((1.0 + (r / alpha) ** 2.0) ** (-1.0 * beta))[:, :]
+    alpha = hwhm * np.sqrt(np.power(2.0, (1.0 / beta)) - 1.0)
+    kernel[:, :] = (np.power(1.0 + (r * r / alpha / alpha), -1.0 * beta))[:, :]
     # Normalize the kernel.
     kernel /= kernel.sum()
     return kernel
