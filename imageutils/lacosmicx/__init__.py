@@ -49,13 +49,6 @@ Date : October 2014
  -The arrays always must be C-contiguous, thus all loops are y outer, x inner.
  Note that this follows the Pyfits convention.
  """
-
-# Affiliated packages may add whatever they like to this file, but
-# should keep this content at the top.
-# ----------------------------------------------------------------------------
-from ._astropy_init import *
-# ----------------------------------------------------------------------------
-
 # For egg_info test builds to pass, put package imports here.
 if not _ASTROPY_SETUP_:
     from .lacosmicx import run

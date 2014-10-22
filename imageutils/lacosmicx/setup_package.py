@@ -14,7 +14,6 @@ def get_extensions():
             ext.include_dirs = [np.get_include()]
             ext.extra_compile_args = ['-g', '-O3', '-fopenmp',
                                       '-funroll-loops', '-ffast-math']
-            ext.libraries = ['gomp']
             ext.extra_link_args = ['-g', '-fopenmp']
             ext.sources.append('imageutils/lacosmicx/laxutils.c')
 #            ext.define_macros = [("NPY_NO_DEPRECATED_API",
