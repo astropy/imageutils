@@ -1,23 +1,29 @@
+import os
+
 from distutils.core import setup, Extension
-from Cython.Build import cythonize
-import numpy as np
 
 
-def get_package_data():
-    return {
-        _ASTROPY_PACKAGE_NAME_: ['coveragerc']}
+LACOSMICX_ROOT = os.path.relpath(os.path.dirname(__file__))
 
 
 def get_extensions():
-        cyExts = cythonize("imageutils/lacosmicx/la*.pyx")
-        for ext in cyExts:
-            ext.include_dirs = [np.get_include()]
-            ext.extra_compile_args = ['-g', '-O3', '-fopenmp',
-                                      '-funroll-loops', '-ffast-math']
-            ext.extra_link_args = ['-g', '-fopenmp']
-            ext.sources.append('imageutils/lacosmicx/laxutils.c')
-#            ext.define_macros = [("NPY_NO_DEPRECATED_API",
-#                                  "NPY_1_7_API_VERSION")]
-            print(ext.sources)
 
-        return cyExts
+    sources = [os.path.join(LACOSMICX_ROOT, "lacosmicx.pyx"),
+               os.path.join(LACOSMICX_ROOT, "laxutils.c")]
+
+    include_dirs = ['numpy', LACOSMICX_ROOT]
+
+    libraries = []
+
+    ext = Extension(name="imageutils.lacosmicx.lacosmicx",
+                    sources=sources,
+                    include_dirs=include_dirs,
+                    libraries=libraries,
+                    language="c",
+                    extra_compile_args=['-g', '-O3', '-fopenmp',
+                                        '-funroll-loops', '-ffast-math'])
+
+    # TODO: figure out how to put these only when not using clang:
+    # ext.extra_link_args = ['-g', '-fopenmp']
+
+    return [ext]
