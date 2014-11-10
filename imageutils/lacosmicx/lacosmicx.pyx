@@ -43,9 +43,7 @@ cdef extern from "laxutils.h":
     void PyDilate5(uint8_t * data, uint8_t * output, int niter, int nx,
                    int ny) nogil
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
+
 def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] inmask=None,
         float sigclip=4.5, float sigfrac=0.3, float objlim=5.0, float gain=1.0,
@@ -318,7 +316,7 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
 
         # otherwise clean the image and iterate
         if cleantype == 'median':
-        # Unmasked median filter
+            # Unmasked median filter
             cleanarray[crmask] = m5[crmask]
             del m5
         # Masked mean filter
@@ -342,9 +340,6 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
     return output
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
 def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data,
                np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask,
                float satlevel, bool sepmed):
@@ -396,9 +391,6 @@ def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data,
     del grow_mask
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
 cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                          bool[:, ::1] mask, int nx, int ny,
                          float backgroundlevel):
@@ -458,9 +450,6 @@ cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                     cleanarr[j, i] = s
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
 cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                         bool[:, ::1] mask, int nx, int ny,
                         float backgroundlevel):
@@ -518,9 +507,6 @@ cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
         free(medarr)
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
 cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                           bool[:, ::1] mask, int nx, int ny,
                           float backgroundlevel):
@@ -583,9 +569,6 @@ cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                         cleanarr[j, i] = val / wsum
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
 def gausskernel(float psffwhm, int kernsize):
     """ gausskernel(psffwhm, kernsize) -> array
     Calculate a Gaussian psf kernel.
@@ -612,9 +595,6 @@ def gausskernel(float psffwhm, int kernsize):
     return kernel
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
 cdef moffatkernel(float psffwhm, float beta, int kernsize):
     """ gausskernel(psffwhm, beta, kernsize) -> array
     Calculate a Moffat psf kernel.
