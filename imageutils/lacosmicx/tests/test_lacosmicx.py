@@ -4,11 +4,11 @@ from __future__ import (absolute_import, division, print_function,
 import numpy as np
 from numpy.testing import assert_allclose
 
-from ..laxwrappers import (median, optmed3, optmed5, optmed7,
-                           optmed9, optmed25, medfilt3, medfilt5,
-                           medfilt7, sepmedfilt3, sepmedfilt5, sepmedfilt7,
-                           sepmedfilt9, dilate3, dilate5, subsample,
-                           rebin, laplaceconvolve, convolve)
+from ..lacosmicx import (median, optmed3, optmed5, optmed7,
+                         optmed9, optmed25, medfilt3, medfilt5,
+                         medfilt7, sepmedfilt3, sepmedfilt5, sepmedfilt7,
+                         sepmedfilt9, dilate3, dilate5, subsample,
+                         rebin, laplaceconvolve, convolve)
 
 from scipy.ndimage.morphology import binary_dilation
 from scipy import ndimage
