@@ -317,7 +317,7 @@ def run(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         # otherwise clean the image and iterate
         if cleantype == 'median':
             # Unmasked median filter
-            cleanarray[crmask] = m5[crmask]
+            cleanarr[crmask] = m5[crmask]
             del m5
         # Masked mean filter
         elif cleantype == 'meanmask':
