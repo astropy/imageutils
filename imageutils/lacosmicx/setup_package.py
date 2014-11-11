@@ -1,10 +1,16 @@
 import os
 
 from distutils.core import setup, Extension
+from distutils.ccompiler import new_compiler
 
-
-# TODO: figure out how to set this conditionally for compilers that support it
+# check to see if openmp is supported
 USE_OPENMP = False
+ccompiler = new_compiler()
+ccompiler.add_library('gomp')
+try:
+   USE_OPENMP=ccompiler.has_function('omp_get_num_threads')
+except:
+   USE_OPENMP=False
 
 
 LACOSMICX_ROOT = os.path.relpath(os.path.dirname(__file__))
