@@ -19,7 +19,7 @@ def has_openmp():
     s = subprocess.Popen([sys.executable], stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
-    s.communicate(CODELINES)
+    s.communicate(CODELINES.encode('utf-8'))
     s.wait()
     return bool(s.returncode)
 
