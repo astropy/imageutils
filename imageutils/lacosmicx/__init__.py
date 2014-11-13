@@ -51,6 +51,6 @@ Date : October 2014
  """
 # For egg_info test builds to pass, put package imports here.
 if not _ASTROPY_SETUP_:
-    from .lacosmicx import run
+    from .lacosmicx import lacosmicx
 #    from ..laxwrappers import *
-__all__ = ['run']
+__all__ = ['lacosmicx']
