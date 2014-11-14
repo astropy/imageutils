@@ -383,7 +383,7 @@ def lacosmicx(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
 def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data,
                np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] mask,
                float satlevel, bool sepmed):
-    """updatemask(data, mask, satlevel, sepmed)
+    """updatemask(data, mask, satlevel, sepmed)\n
      Find staturated stars and puts them in the mask.
 
      This can then be used to avoid these regions in cosmic detection and
@@ -438,7 +438,7 @@ def updatemask(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] data,
 cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                          bool[:, ::1] mask, int nx, int ny,
                          float backgroundlevel):
-    """ clean_meanmask(cleanarr, crmask, mask, nx, ny, backgroundlevel)
+    """ clean_meanmask(cleanarr, crmask, mask, nx, ny, backgroundlevel)\n
     Clean the bad pixels in cleanarr using a 5x5 masked mean filter.
 
     Parameters
@@ -503,7 +503,7 @@ cdef void clean_meanmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
 cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                         bool[:, ::1] mask, int nx, int ny,
                         float backgroundlevel):
-    """ clean_medmask(cleanarr, crmask, mask, nx, ny, backgroundlevel)
+    """ clean_medmask(cleanarr, crmask, mask, nx, ny, backgroundlevel)\n
     Clean the bad pixels in cleanarr using a 5x5 masked median filter.
 
     Parameters
@@ -566,7 +566,7 @@ cdef void clean_medmask(float[:, ::1] cleanarr, bool[:, ::1] crmask,
 cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
                           bool[:, ::1] mask, int nx, int ny,
                           float backgroundlevel):
-    """clean_idwinterp(cleanarr, crmask, mask, nx, ny, backgroundlevel)
+    """clean_idwinterp(cleanarr, crmask, mask, nx, ny, backgroundlevel)\n
     Clean the bad pixels in cleanarr using a 5x5 using inverse distance
     weighted interpolation.
 
@@ -632,7 +632,7 @@ cdef void clean_idwinterp(float[:, ::1] cleanarr, bool[:, ::1] crmask,
 
 
 def gausskernel(float psffwhm, int kernsize):
-    """gausskernel(psffwhm, kernsize)
+    """gausskernel(psffwhm, kernsize)\n
     Calculate a circular Gaussian psf kernel.
 
     Parameters
@@ -664,7 +664,7 @@ def gausskernel(float psffwhm, int kernsize):
 
 
 def gaussxkernel(float psffwhm, int kernsize):
-    """gaussxkernel(psffwhm, kernsize)
+    """gaussxkernel(psffwhm, kernsize)\n
     Calculate a Guassian kernel in the x-direction.
 
     This can be used for spectroscopic data.
@@ -695,7 +695,7 @@ def gaussxkernel(float psffwhm, int kernsize):
 
 
 def gaussykernel(float psffwhm, int kernsize):
-    """gaussykernel(psffwhm, kernsize)
+    """gaussykernel(psffwhm, kernsize)\n
     Calculate a Guassian kernel in the y-direction.
 
     This can be used for spectroscopic data.
@@ -727,7 +727,7 @@ def gaussykernel(float psffwhm, int kernsize):
 
 
 cdef moffatkernel(float psffwhm, float beta, int kernsize):
-    """moffatkernel(psffwhm, beta, kernsize)
+    """moffatkernel(psffwhm, beta, kernsize)\n
     Calculate a Moffat psf kernel.
 
     Parameters
@@ -768,7 +768,7 @@ Below are wrappers for the C functions in laxutils.c
 
 
 def median(np.ndarray[np.float32_t, mode='c', cast=True] a, int n):
-    """median(a, n)
+    """median(a, n)\n
     Find the median of the first n elements of an array.
 
     Parameters
@@ -796,7 +796,7 @@ def median(np.ndarray[np.float32_t, mode='c', cast=True] a, int n):
 
 
 def optmed3(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed3(a)
+    """optmed3(a)\n
     Optimized method to find the median value of an array of length 3.
 
     Parameters
@@ -821,7 +821,7 @@ def optmed3(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def optmed5(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed5(a)
+    """optmed5(a)\n
     Optimized method to find the median value of an array of length 5.
 
     Parameters
@@ -846,7 +846,7 @@ def optmed5(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def optmed7(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed7(a)
+    """optmed7(a)\n
     Optimized method to find the median value of an array of length 7.
 
     Parameters
@@ -871,7 +871,7 @@ def optmed7(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def optmed9(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed9(a)
+    """optmed9(a)\n
     Optimized method to find the median value of an array of length 9.
 
     Parameters
@@ -896,7 +896,7 @@ def optmed9(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def optmed25(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed25(a)
+    """optmed25(a)\n
     Optimized method to find the median value of an array of length 25.
 
     Parameters
@@ -921,7 +921,7 @@ def optmed25(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def medfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d3):
-    """medfilt3(d3)
+    """medfilt3(d3)\n
     Calculate the 3x3 median filter of an array.
 
     Parameters
@@ -955,7 +955,7 @@ def medfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d3):
 
 
 def medfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d5):
-    """medfilt5(d5)
+    """medfilt5(d5)\n
     Calculate the 5x5 median filter of an array.
 
     Parameters
@@ -988,7 +988,7 @@ def medfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d5):
 
 
 def medfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d7):
-    """medfilt7(d7)
+    """medfilt7(d7)\n
     Calculate the 7x7 median filter of an array.
 
     Parameters
@@ -1022,7 +1022,7 @@ def medfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d7):
 
 
 def sepmedfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep3):
-    """sepmedfilt3(dsep3)
+    """sepmedfilt3(dsep3)\n
     Calculate the 3x3 separable median filter of an array.
 
     Parameters
@@ -1059,7 +1059,7 @@ def sepmedfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep3):
 
 
 def sepmedfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep5):
-    """sepmedfilt5(dsep5)
+    """sepmedfilt5(dsep5)\n
     Calculate the 5x5 separable median filter of an array.
 
     Parameters
@@ -1097,7 +1097,7 @@ def sepmedfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep5):
 
 
 def sepmedfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep7):
-    """sepmedfilt7(dsep7)
+    """sepmedfilt7(dsep7)\n
     Calculate the 7x7 separable median filter of an array.
 
     Parameters
@@ -1134,7 +1134,7 @@ def sepmedfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep7):
 
 
 def sepmedfilt9(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep9):
-    """sepmedfilt9(dsep9)
+    """sepmedfilt9(dsep9)\n
     Calculate the 9x9 separable median filter of an array.
 
     Parameters
@@ -1172,7 +1172,7 @@ def sepmedfilt9(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep9):
 
 
 def subsample(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsub):
-    """subsample(dsub)
+    """subsample(dsub)\n
     Subsample an array 2x2 given an input array dsub.
 
     Parameters
@@ -1209,7 +1209,7 @@ def subsample(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsub):
 
 
 def rebin(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] drebin):
-    """rebin(drebin)
+    """rebin(drebin)\n
     Rebin an array 2x2.
 
     Rebin the array by block averaging 4 pixels back into 1.
@@ -1247,7 +1247,7 @@ def rebin(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] drebin):
 
 def convolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dconv,
              np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] kernel):
-    """convolve(dconv, kernel)
+    """convolve(dconv, kernel)\n
     Convolve an array with a kernel.
 
     Parameters
@@ -1288,7 +1288,7 @@ def convolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dconv,
 
 
 def laplaceconvolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dl):
-    """laplaceconvolve(dl)
+    """laplaceconvolve(dl)\n
     Convolve an array with the Laplacian kernel.
 
     Convolve with the discrete version of the Laplacian operator with kernel:\n
@@ -1326,7 +1326,7 @@ def laplaceconvolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dl):
 
 
 def dilate3(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] dgrow):
-    """dilate3(dgrow)
+    """dilate3(dgrow)\n
     Perform a boolean dilation on an array.
 
     Parameters
@@ -1367,7 +1367,7 @@ def dilate3(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] dgrow):
 
 def dilate5(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] ddilate,
             int niter):
-    """dilate5(data, niter)
+    """dilate5(data, niter)\n
     Do niter iterations of boolean dilation on an array.
 
     Parameters
