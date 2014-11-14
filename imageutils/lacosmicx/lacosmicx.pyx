@@ -59,7 +59,7 @@ def lacosmicx(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
                  gain=1.0, readnoise=6.5, satlevel=65536.0, pssl=0.0, niter=4,
                  sepmed=True, cleantype='meanmask', fsmode='median',
                  psfmodel='gauss', psffwhm=2.5,psfsize=7, psfk=None,
-                 psfbeta=4.765, verbose=False, retclean=False)
+                 psfbeta=4.765, verbose=False, retclean=False)\n
     Run the LACosmic algorithm to detect cosmic rays in a numpy array.
 
     Parameters
