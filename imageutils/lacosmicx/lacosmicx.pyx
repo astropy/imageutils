@@ -62,7 +62,6 @@ def lacosmicx(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
                  psfbeta=4.765, verbose=False, retclean=False)
     Run the LACosmic algorithm to detect cosmic rays in a numpy array.
 
-
     Parameters
     ----------
     indat : float numpy array
@@ -114,24 +113,26 @@ def lacosmicx(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         significantly faster and still detects cosmic rays well. Default: True
 
     cleantype : {'median', 'medmask', 'meanmask', 'idw'}, optional
-        Set which clean algorithm is used:
-        'median': An umasked 5x5 median filter
-        'medmask': A masked 5x5 median filter
-        'meanmask': A masked 5x5 mean filter
-        'idw': A masked 5x5 inverse distance weighted interpolation
+        Set which clean algorithm is used:\n
+        'median': An umasked 5x5 median filter\n
+        'medmask': A masked 5x5 median filter\n
+        'meanmask': A masked 5x5 mean filter\n
+        'idw': A masked 5x5 inverse distance weighted interpolation\n
         Default: "meanmask".
 
     fsmode : {'median', 'convolve'}, optional
-        Method to build the fine structure image:
+        Method to build the fine structure image:\n
         'median': Use the median filter in the standard LA Cosmic algorithm
         'convolve': Convolve the image with the psf kernel to calculate the
         fine structure image.
         Default: 'median'.
 
-    psfmodel : {'gauss', 'moffat'}, optional
+    psfmodel : {'gauss', 'gaussx', 'gaussy', 'moffat'}, optional
         Model to use to generate the psf kernel if fsmode == 'convolve' and
-        psfk is None. The current choices are  Gaussian and Moffat profiles.
-        Default: "gauss".
+        psfk is None. The current choices are Gaussian and Moffat profiles.
+        'gauss' and 'moffat' produce circular PSF kernels. The 'gaussx' and
+        'gaussy' produce Gaussian kernels in the x and y directions
+        respectively. Default: "gauss".
 
     psffwhm : float, optional
         Full Width Half Maximum of the PSF to use to generate the kernel.
@@ -172,6 +173,12 @@ def lacosmicx(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
     To reproduce the most similar behavior to the original LA Cosmic
     (written in IRAF), set  inmask = None, satlevel = np.inf, sepmed=False,
     cleantype='medmask', and fsmode='median'.
+
+    The original IRAF version distinguishes between spectroscopic and imaging
+    data. This version does not. After sky subtracting the spectroscopic data,
+    this version will work well. The 1-d 'gaussx' and 'gaussy' values for
+    psfmodel can also be used for spectroscopic data (and may even alleviate
+    the need to do sky subtraction, but this still requires more testing).
     """
 
     # Grab the sizes of the input array
@@ -222,6 +229,10 @@ def lacosmicx(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
         # calculate the psf kernel psfk
         if psfmodel == 'gauss':
             psfk = gausskernel(psffwhm, psfsize)
+        elif psfmodel == 'gaussx':
+            psfk = gaussxkernel(psffwhm, psfsize)
+        elif psfmodel == 'gaussy':
+            psfk = gaussykernel(psffwhm, psfsize)
         elif psfmodel == 'moffat':
             psfk = moffatkernel(psffwhm, psfbeta, psfsize)
         else:
@@ -652,19 +663,89 @@ def gausskernel(float psffwhm, int kernsize):
     return kernel
 
 
+def gaussxkernel(float psffwhm, int kernsize):
+    """gaussxkernel(psffwhm, kernsize)
+    Calculate a Guassian kernel in the x-direction.
+
+    This can be used for spectroscopic data.
+
+    Parameters
+    ----------
+    psffwhm : float
+        Full Width Half Maximum of the PSF to use to generate the kernel.
+
+    kernsize : int
+        Size of the kernel to calculate. kernsize should be odd.
+        Returned kernel will have size kernsize x kernsize.
+
+    Returns
+    -------
+    kernel : float numpy array
+        Gaussian(x) kernel with size kernsize x kernsize.
+    """
+    kernel = np.zeros((kernsize, kernsize), dtype=np.float32)
+    # Make a grid of x and y values
+    x = np.tile(np.arange(kernsize) - kernsize / 2, (kernsize, 1))
+    # Calculate the kernel
+    sigma2 = psffwhm * psffwhm / 2.35482 / 2.35482
+    kernel[:, :] = np.exp(-0.5 * x * x / sigma2)[:, :]
+    # Normalize the kernel
+    kernel /= kernel.sum()
+    return kernel
+
+
+def gaussykernel(float psffwhm, int kernsize):
+    """gaussykernel(psffwhm, kernsize)
+    Calculate a Guassian kernel in the y-direction.
+
+    This can be used for spectroscopic data.
+
+    Parameters
+    ----------
+    psffwhm : float
+        Full Width Half Maximum of the PSF to use to generate the kernel.
+
+    kernsize : int
+        Size of the kernel to calculate. kernsize should be odd.
+        Returned kernel will have size kernsize x kernsize.
+
+    Returns
+    -------
+    kernel : float numpy array
+        Gaussian(y) kernel with size kernsize x kernsize.
+    """
+    kernel = np.zeros((kernsize, kernsize), dtype=np.float32)
+    # Make a grid of x and y values
+    x = np.tile(np.arange(kernsize) - kernsize / 2, (kernsize, 1))
+    y = x.transpose().copy()
+    # Calculate the kernel
+    sigma2 = psffwhm * psffwhm / 2.35482 / 2.35482
+    kernel[:, :] = np.exp(-0.5 * y * y / sigma2)[:, :]
+    # Normalize the kernel
+    kernel /= kernel.sum()
+    return kernel
+
+
 cdef moffatkernel(float psffwhm, float beta, int kernsize):
     """moffatkernel(psffwhm, beta, kernsize)
     Calculate a Moffat psf kernel.
 
-    Arguments:
-    ==========
-    psffwhm (float): Full Width Half Maximum of the PSF to use to generate
-        the kernel.
+    Parameters
+    ----------
+    psffwhm : float
+        Full Width Half Maximum of the PSF to use to generate the kernel.
 
-    beta (float): Moffat beta parameter
+    beta : float
+        Moffat beta parameter
 
-    kernsize (int): Size of the kernel to calculate. Returned kernel will
-        have size kernsize x kernsize. kernsize should be odd.
+    kernsize : int
+        Size of the kernel to calculate. Returned kernel will have size
+        kernsize x kernsize. kernsize should be odd.
+
+    Returns
+    -------
+    kernel : float numpy array
+        Moffat kernel with size kernsize x kernsize.
     """
     kernel = np.zeros((kernsize, kernsize), dtype=np.float32)
     # Make a grid of x and y values
@@ -687,9 +768,24 @@ Below are wrappers for the C functions in laxutils.c
 
 
 def median(np.ndarray[np.float32_t, mode='c', cast=True] a, int n):
-    """median(a, n) -> float
-    Find the median of the first n elements of an array a. Returns a float.
+    """median(a, n)
+    Find the median of the first n elements of an array.
 
+    Parameters
+    ----------
+    a : float numpy array
+        Input array to find the median.
+
+    n : int
+        Number of elements of the array to median.
+
+    Returns
+    -------
+    med : float
+        The median value.
+
+    Notes
+    -----
     Wrapper for PyMedian in laxutils.
     """
     cdef float * aptr = < float * > np.PyArray_DATA(a)
@@ -700,10 +796,22 @@ def median(np.ndarray[np.float32_t, mode='c', cast=True] a, int n):
 
 
 def optmed3(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed3(a) -> float
-    Optimized method to find the median value of an array "a" of length 3.
+    """optmed3(a)
+    Optimized method to find the median value of an array of length 3.
 
-    Wrapper for PyOtMed3 in laxutils.
+    Parameters
+    ----------
+    a : float numpy array
+        Input array to find the median. Must be length 3.
+
+    Returns
+    -------
+    med3 : float
+        The median of the 3-element array.
+
+    Notes
+    -----
+    Wrapper for PyOptMed3 in laxutils.
     """
     cdef float * aptr3 = < float * > np.PyArray_DATA(a)
     cdef float med3 = 0.0
@@ -713,10 +821,22 @@ def optmed3(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def optmed5(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed5(a) -> float
-    Optimized method to find the median value of an array "a" of length 5.
+    """optmed5(a)
+    Optimized method to find the median value of an array of length 5.
 
-    Wrapper for PyOtMed5 in laxutils.
+    Parameters
+    ----------
+    a : float numpy array
+        Input array to find the median. Must be length 5.
+
+    Returns
+    -------
+    med5 : float
+        The median of the 5-element array.
+
+    Notes
+    -----
+    Wrapper for PyOptMed5 in laxutils.
     """
     cdef float * aptr5 = < float * > np.PyArray_DATA(a)
     cdef float med5 = 0.0
@@ -726,10 +846,22 @@ def optmed5(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def optmed7(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed7(a) -> float
-    Optimized method to find the median value of an array "a" of length 7.
+    """optmed7(a)
+    Optimized method to find the median value of an array of length 7.
 
-    Wrapper for PyOtMed7 in laxutils.
+    Parameters
+    ----------
+    a : float numpy array
+        Input array to find the median. Must be length 7.
+
+    Returns
+    -------
+    med7 : float
+        The median of the 7-element array.
+
+    Notes
+    -----
+    Wrapper for PyOptMed7 in laxutils.
     """
     cdef float * aptr7 = < float * > np.PyArray_DATA(a)
     cdef float med7 = 0.0
@@ -739,10 +871,22 @@ def optmed7(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def optmed9(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed9(a) -> float
-    Optimized method to find the median value of an array "a" of length 9.
+    """optmed9(a)
+    Optimized method to find the median value of an array of length 9.
 
-    Wrapper for PyOtMed9 in laxutils.
+    Parameters
+    ----------
+    a : float numpy array
+        Input array to find the median. Must be length 9.
+
+    Returns
+    -------
+    med9 : float
+        The median of the 9-element array.
+
+    Notes
+    -----
+    Wrapper for PyOptMed9 in laxutils.
     """
     cdef float * aptr9 = < float * > np.PyArray_DATA(a)
     cdef float med9 = 0.0
@@ -752,10 +896,22 @@ def optmed9(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def optmed25(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
-    """optmed25(a) -> float
-    Optimized method to find the median value of an array "a" of length 25.
+    """optmed25(a)
+    Optimized method to find the median value of an array of length 25.
 
-    Wrapper for PyOtMed25 in laxutils.
+    Parameters
+    ----------
+    a : float numpy array
+        Input array to find the median. Must be length 25.
+
+    Returns
+    -------
+    med25 : float
+        The median of the 25-element array.
+
+    Notes
+    -----
+    Wrapper for PyOptMed25 in laxutils.
     """
     cdef float * aptr25 = < float * > np.PyArray_DATA(a)
     cdef float med25 = 0.0
@@ -765,9 +921,21 @@ def optmed25(np.ndarray[np.float32_t, ndim=1, mode='c', cast=True] a):
 
 
 def medfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d3):
-    """medfilt3(data) -> array
+    """medfilt3(d3)
     Calculate the 3x3 median filter of an array.
 
+    Parameters
+    ----------
+    d3 : float numpy array
+        Array to median filter.
+
+    Returns
+    -------
+    output : float numpy array
+        Median filtered array.
+
+    Notes
+    -----
     The median filter is not calculated for a 1 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
     C-contiguous order. Wrapper for PyMedFilt3 in laxutils.
@@ -787,9 +955,21 @@ def medfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d3):
 
 
 def medfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d5):
-    """medfilt5(data) -> array
+    """medfilt5(d5)
     Calculate the 5x5 median filter of an array.
 
+    Parameters
+    ----------
+    d5 : float numpy array
+        Array to median filter.
+
+    Returns
+    -------
+    output : float numpy array
+        Median filtered array.
+
+    Notes
+    -----
     The median filter is not calculated for a 2 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
     C-contiguous order. Wrapper for PyMedFilt5 in laxutils.
@@ -808,9 +988,21 @@ def medfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d5):
 
 
 def medfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d7):
-    """medfilt7(data) -> array
+    """medfilt7(d7)
     Calculate the 7x7 median filter of an array.
 
+    Parameters
+    ----------
+    d7 : float numpy array
+        Array to median filter.
+
+    Returns
+    -------
+    output : float numpy array
+        Median filtered array.
+
+    Notes
+    -----
     The median filter is not calculated for a 3 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
     C-contiguous order. Wrapper for PyMedFilt7 in laxutils.
@@ -830,9 +1022,24 @@ def medfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] d7):
 
 
 def sepmedfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep3):
-    """sepmedfilt3(data) -> array
+    """sepmedfilt3(dsep3)
     Calculate the 3x3 separable median filter of an array.
 
+    Parameters
+    ----------
+    dsep3 : float numpy array
+        Array to median filter.
+
+    Returns
+    -------
+    output : float numpy array
+        Median filtered array.
+
+    Notes
+    -----
+    The separable median medians the rows followed by the columns instead of
+    using a square window. Therefore it is not identical to the full median
+    filter but it is approximatly the same, but it is signifcantly faster.
     The median filter is not calculated for a 1 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
     C-contiguous order. Wrapper for PySepMedFilt3 in laxutils.
@@ -852,9 +1059,24 @@ def sepmedfilt3(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep3):
 
 
 def sepmedfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep5):
-    """sepmedfilt5(data) -> array
+    """sepmedfilt5(dsep5)
     Calculate the 5x5 separable median filter of an array.
 
+    Parameters
+    ----------
+    dsep5 : float numpy array
+        Array to median filter.
+
+    Returns
+    -------
+    output : float numpy array
+        Median filtered array.
+
+    Notes
+    -----
+    The separable median medians the rows followed by the columns instead of
+    using a square window. Therefore it is not identical to the full median
+    filter but it is approximatly the same, but it is signifcantly faster.
     The median filter is not calculated for a 2 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
     C-contiguous order. Wrapper for PySepMedFilt5 in laxutils.
@@ -875,9 +1097,24 @@ def sepmedfilt5(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep5):
 
 
 def sepmedfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep7):
-    """sepmedfilt7(data) -> array
+    """sepmedfilt7(dsep7)
     Calculate the 7x7 separable median filter of an array.
 
+    Parameters
+    ----------
+    dsep7 : float numpy array
+        Array to median filter.
+
+    Returns
+    -------
+    output : float numpy array
+        Median filtered array.
+
+    Notes
+    -----
+    The separable median medians the rows followed by the columns instead of
+    using a square window. Therefore it is not identical to the full median
+    filter but it is approximatly the same, but it is signifcantly faster.
     The median filter is not calculated for a 3 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
     C-contiguous order. Wrapper for PySepMedFilt7 in laxutils.
@@ -897,13 +1134,29 @@ def sepmedfilt7(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep7):
 
 
 def sepmedfilt9(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep9):
-    """sepmedfilt9(data) -> array
+    """sepmedfilt9(dsep9)
     Calculate the 9x9 separable median filter of an array.
 
+    Parameters
+    ----------
+    dsep9 : float numpy array
+        Array to median filter.
+
+    Returns
+    -------
+    output : float numpy array
+        Median filtered array.
+
+    Notes
+    -----
+    The separable median medians the rows followed by the columns instead of
+    using a square window. Therefore it is not identical to the full median
+    filter but it is approximatly the same, but it is signifcantly faster.
     The median filter is not calculated for a 4 pixel border around the image.
     These pixel values are copied from the input data. The array needs to be
     C-contiguous order. Wrapper for PySepMedFilt9 in laxutils.
     """
+
     cdef int nx = dsep9.shape[1]
     cdef int ny = dsep9.shape[0]
 
@@ -919,9 +1172,22 @@ def sepmedfilt9(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsep9):
 
 
 def subsample(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsub):
-    """subsample(dsub) -> array
+    """subsample(dsub)
     Subsample an array 2x2 given an input array dsub.
 
+    Parameters
+    ----------
+    dsub : float numpy array
+        Array to be subsampled.
+
+    Returns
+    -------
+    output : float numpy array
+        Subsampled array. Output dimensions will be 2 times the input
+        dimensions.
+
+    Notes
+    -----
     Each pixel is replicated into 4 pixels; no averaging is performed.
     The array needs to be C-contiguous order. Wrapper for PySubsample in
     laxutils.
@@ -943,12 +1209,26 @@ def subsample(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dsub):
 
 
 def rebin(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] drebin):
-    """rebin(data) -> array
+    """rebin(drebin)
     Rebin an array 2x2.
 
-    Rebin the array by block averaging 4 pixels back into
-    1. This is effectively the opposite of subsample (although subsample does
-    not do an average). The array needs to be C-contiguous order. Wrapper for
+    Rebin the array by block averaging 4 pixels back into 1.
+
+    Parameters
+    ----------
+    drebin : float numpy array
+        Array to be rebinned 2x2.
+
+    Returns
+    -------
+    output : float numpy array
+        Rebinned array. The size of the output array will be 2 times smaller
+        than drebin.
+
+    Notes
+    -----
+    This is effectively the opposite of subsample (although subsample does not
+    do an average). The array needs to be C-contiguous order. Wrapper for
     PyRebin in laxutils.
     """
     cdef int nx = drebin.shape[1] / 2
@@ -967,9 +1247,24 @@ def rebin(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] drebin):
 
 def convolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dconv,
              np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] kernel):
-    """convolve(data, kernel) -> array
+    """convolve(dconv, kernel)
     Convolve an array with a kernel.
 
+    Parameters
+    ----------
+    dconv : float numpy array
+        Array to be convolved.
+
+    kernel : float numpy array
+        Kernel to use in the convolution.
+
+    Returns
+    -------
+    output : float numpy array
+        Convolved array.
+
+    Notes
+    -----
     Both the data and kernel arrays need to be C-contiguous order. Wrapper for
     PyConvolve in laxutils.
     """
@@ -993,14 +1288,26 @@ def convolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dconv,
 
 
 def laplaceconvolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dl):
-    """laplaceconvolve(data) -> array
+    """laplaceconvolve(dl)
     Convolve an array with the Laplacian kernel.
 
-    The kernel is as follows:
-     0 -1  0
-    -1  4 -1
-     0 -1  0
-    This is a discrete version of the Laplacian operator.
+    Convolve with the discrete version of the Laplacian operator with kernel:\n
+     0 -1  0\n
+    -1  4 -1\n
+     0 -1  0\n
+
+    Parameters
+    ----------
+    dl : float numpy array
+        Array to be convolved.
+
+    Returns
+    -------
+    output: float numpy array
+        Convolved array.
+
+    Notes
+    -----
     The array needs to be C-contiguous order. Wrapper for PyLaplaceConvolve
     in laxutils.
     """
@@ -1019,15 +1326,27 @@ def laplaceconvolve(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] dl):
 
 
 def dilate3(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] dgrow):
-    """dilate3(data) -> array
+    """dilate3(dgrow)
     Perform a boolean dilation on an array.
 
+    Parameters
+    ----------
+    dgrow : boolean numpy array
+        Array to dilate.
+
+    Returns
+    -------
+    output : boolean numpy array
+        Dilated array.
+
+    Notes
+    -----
     Dilation is the boolean equivalent of a convolution but using logical ors
     instead of a sum.
-    We apply the following kernel:
-    1 1 1
-    1 1 1
-    1 1 1
+    We apply the following kernel:\n
+    1 1 1\n
+    1 1 1\n
+    1 1 1\n
     The binary dilation is not computed for a 1 pixel border around the image.
     These pixels are copied from the input data. The array needs to be
     C-contiguous order. Wrapper for PyDilate3 in laxutils.
@@ -1051,15 +1370,6 @@ def dilate5(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] ddilate,
     """dilate5(data, niter)
     Do niter iterations of boolean dilation on an array.
 
-    Dilation is the boolean equivalent of a convolution but using logical ors
-    instead of a sum.
-    We apply the following kernel:
-    0 1 1 1 0
-    1 1 1 1 1
-    1 1 1 1 1
-    1 1 1 1 1
-    0 1 1 1 0
-
     Parameters
     ----------
     ddilate : boolean numpy array
@@ -1068,8 +1378,21 @@ def dilate5(np.ndarray[np.uint8_t, ndim=2, mode='c', cast=True] ddilate,
     niter : int
         Number of iterations.
 
+    Returns
+    -------
+    output : boolean numpy array
+        Dilated array.
+
     Notes
     -----
+    Dilation is the boolean equivalent of a convolution but using logical ors
+    instead of a sum.
+    We apply the following kernel:\n
+    0 1 1 1 0\n
+    1 1 1 1 1\n
+    1 1 1 1 1\n
+    1 1 1 1 1\n
+    0 1 1 1 0\n
     The edges are padded with zeros so that the dilation operator is defined
     for all pixels. The array needs to be C-contiguous order. Wrapper for
     PyDilate5 in laxutils.

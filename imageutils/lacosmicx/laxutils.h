@@ -3,6 +3,8 @@
  *
  * Author: Curtis McCully
  * October 2014
+ *
+ * Licensed under a 3-clause BSD style license - see LICENSE.rst
  */
 
 #ifndef LAXUTILS_H_

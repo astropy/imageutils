@@ -47,8 +47,12 @@ def get_extensions():
         ext.extra_compile_args.append('-fopenmp')
         ext.extra_link_args = ['-g', '-fopenmp']
     else:
-        log.warn('OpenMP was not found.  lacosmicx will be compiled without OpenMP. '
+        log.warn('OpenMP was not found. '
+                 'lacosmicx will be compiled without OpenMP. '
                  '(Use the "-v" option of setup.py for more details.)')
-        log.debug('(Start of OpenMP info)\ncompiler stdout:\n{0}\ncompiler stderr:\n{1}\n(End of OpenMP info)'.format(*outputs))
+        log.debug(('(Start of OpenMP info)\n'
+                   'compiler stdout:\n{0}\n'
+                   'compiler stderr:\n{1}\n'
+                   '(End of OpenMP info)').format(*outputs))
 
     return [ext]

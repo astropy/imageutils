@@ -1,6 +1,8 @@
 /*
  * Author: Curtis McCully
  * October 2014
+ * Licensed under a 3-clause BSD style license - see LICENSE.rst
+ *
  * Originally written in C++ in 2011
  * See also https://github.com/cmccully/lacosmicx
  *
