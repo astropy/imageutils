@@ -8,10 +8,10 @@ import numpy as np
 import copy
 
 __all__ = ['extract_array_2d', 'add_array_2d', 'subpixel_indices',
-           'mask_to_mirrored_num']
+           'mask_to_mirrored_num', 'get_slices']
 
 
-def _get_slices(large_array_shape, small_array_shape, position):
+def get_slices(large_array_shape, small_array_shape, position):
     """
     Get slices for the overlapping part of a small and a large array.
 
@@ -43,10 +43,10 @@ def _get_slices(large_array_shape, small_array_shape, position):
         Slice in x direction for the small array.
     """
     # Get edge coordinates
-    y_min = int(position[1] + 0.5) - small_array_shape[0] // 2
-    x_min = int(position[0] + 0.5) - small_array_shape[1] // 2
-    y_max = int(position[1] + 0.5) + small_array_shape[0] // 2 + 1
-    x_max = int(position[0] + 0.5) + small_array_shape[1] // 2 + 1
+    y_min = int(position[1] + 0.5 - small_array_shape[0] / 2.)
+    x_min = int(position[0] + 0.5 - small_array_shape[1] / 2.)
+    y_max = int(position[1] + 0.5 + small_array_shape[0] / 2.)
+    x_max = int(position[0] + 0.5 + small_array_shape[1] / 2.)
 
     # Set up slices in x direction
     s_x = slice(max(0, x_min), min(large_array_shape[1], x_max))
@@ -76,21 +76,21 @@ def extract_array_2d(array_large, shape, position):
 
     Examples
     --------
-    We consider a large array of zeros with the shape 11x10 and a small
-    array of ones with a shape of 3x4:
+    We consider a large array with the shape 11x10, from which we extract
+    a small array of shape 3x5:
 
     >>> import numpy as np
     >>> from imageutils.array_utils import extract_array_2d
     >>> large_array = np.arange(110).reshape((11, 10))
     >>> large_array[4:9, 4:9] = np.ones((5, 5))
-    >>> extract_array_2d(large_array, (3, 4), (7, 7))
+    >>> extract_array_2d(large_array, (3, 5), (7, 7))
     array([[ 1,  1,  1,  1, 69],
            [ 1,  1,  1,  1, 79],
            [ 1,  1,  1,  1, 89]])
     """
     # Check if larger array is really larger
     if array_large.shape >= shape:
-        s_y, s_x, _, _ = _get_slices(array_large.shape, shape, position)
+        s_y, s_x, _, _ = get_slices(array_large.shape, shape, position)
         return array_large[s_y, s_x]
     else:
         raise Exception("Can't extract array. Shape too large.")
@@ -128,7 +128,7 @@ def add_array_2d(array_large, array_small, position):
     """
     # Check if larger array is really larger
     if array_large.shape >= array_small.shape:
-        s_y, s_x, b_y, b_x = _get_slices(array_large.shape,
+        s_y, s_x, b_y, b_x = get_slices(array_large.shape,
                                          array_small.shape, position)
         array_large[s_y, s_x] += array_small[b_y, b_x]
         return array_large
