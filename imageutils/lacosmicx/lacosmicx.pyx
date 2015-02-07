@@ -213,8 +213,8 @@ def lacosmicx(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
     updatemask(np.asarray(cleanarr), np.asarray(mask), satlevel, sepmed)
 
     # Find the unmasked pixels to calculate the sky.
-    gooddata = np.zeros(nx * ny - np.asarray(mask).sum(), dtype=np.float32,
-                        order='c')
+    gooddata = np.zeros(int(nx * ny - np.asarray(mask).sum()),
+                        dtype=np.float32, order='c')
 
     igoodpix = 0
 
