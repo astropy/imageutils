@@ -15,9 +15,14 @@ readability has been sacrificed, specifically in the C code.
 
 L.A.Cosmic = LAplacian Cosmic ray detection
 
+If you use this code, please consider adding this repository address in a
+footnote: https://github.com/astropy/imageutils.
+
+Please cite the original paper which can be found at:
 U{http://www.astro.yale.edu/dokkum/lacosmic/}
 
-(article : U{http://arxiv.org/abs/astro-ph/0108003})
+van Dokkum 2001, PASP, 113, 789, 1420
+(article : U{http://adsabs.harvard.edu/abs/2001PASP..113.1420V})
 
 This code requires Cython, preferably version >= 0.21.
 
