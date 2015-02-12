@@ -63,10 +63,10 @@ def lacosmicx(np.ndarray[np.float32_t, ndim=2, mode='c', cast=True] indat,
     Run the LACosmic algorithm to detect cosmic rays in a numpy array.
 
     If you use this code, please cite the original paper which can be found at:
-    U{http://www.astro.yale.edu/dokkum/lacosmic/}
+    http://www.astro.yale.edu/dokkum/lacosmic/
 
     van Dokkum 2001, PASP, 113, 789, 1420
-    (article : U{http://adsabs.harvard.edu/abs/2001PASP..113.1420V})
+    (article : http://adsabs.harvard.edu/abs/2001PASP..113.1420V)
 
     Parameters
     ----------
