@@ -1,3 +1,9 @@
+NOT MAINTAINED
+==============
+
+This package is no longer maintained and the repository is archived. Its core functionality has been migrated to other parts of `astropy` and it's coordinated and affiliated packages.
+
+
 imageutils
 ==========
 
